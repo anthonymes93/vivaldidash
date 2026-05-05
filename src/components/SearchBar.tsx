@@ -8,7 +8,7 @@ const SearchBar: React.FC = () => {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
-      window.location.href = `https://www.bing.com/search?q=${encodeURIComponent(query)}`;
+      window.location.href = `https://search.yahoo.com/search?p=${encodeURIComponent(query)}`;
     }
   };
 
@@ -32,7 +32,7 @@ const SearchBar: React.FC = () => {
       <Search size={20} color="rgba(255, 255, 255, 0.5)" />
       <input
         type="text"
-        placeholder="Search Bing..."
+        placeholder="Search Yahoo..."
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         style={{
