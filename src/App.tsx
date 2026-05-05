@@ -77,11 +77,13 @@ function SortableBookmarkItem({
   onContextMenu,
   onClick,
   isDragging,
+  isAnyDragging,
 }: {
   bookmark: Bookmark;
   onContextMenu: (e: React.MouseEvent, id: string) => void;
   onClick: (id: string) => void;
   isDragging: boolean;
+  isAnyDragging: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: bookmark.id,
@@ -89,19 +91,45 @@ function SortableBookmarkItem({
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.3 : 1,
-    cursor: 'grab',
+    transition: transition || 'transform 200ms cubic-bezier(0.25, 1, 0.5, 1)',
+    cursor: isDragging ? 'grabbing' : 'grab',
   };
 
+  if (isDragging) {
+    // Show a glassy placeholder where the card was
+    return (
+      <div
+        ref={setNodeRef}
+        style={{
+          ...style,
+          width: '120px',
+          height: '120px',
+          border: '2px dashed rgba(255,255,255,0.2)',
+          borderRadius: '20px',
+          background: 'rgba(255,255,255,0.03)',
+          backdropFilter: 'blur(4px)',
+        }}
+        {...attributes}
+        {...listeners}
+      />
+    );
+  }
+
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <motion.div
+      ref={setNodeRef}
+      style={style}
+      animate={isAnyDragging ? { scale: 0.97 } : { scale: 1 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+      {...attributes}
+      {...listeners}
+    >
       <BookmarkCard
         {...bookmark}
         onClick={() => onClick(bookmark.id)}
         onContextMenu={onContextMenu}
       />
-    </div>
+    </motion.div>
   );
 }
 
@@ -293,6 +321,7 @@ function App() {
                       onContextMenu={handleContextMenu}
                       onClick={handleBookmarkClick}
                       isDragging={activeId === bookmark.id}
+                      isAnyDragging={!!activeId}
                     />
                   ))}
 
@@ -318,16 +347,30 @@ function App() {
                 </div>
               </SortableContext>
 
-              {/* Drag overlay — shows a "ghost" card while dragging */}
-              <DragOverlay adjustScale={true}>
+              {/* Premium drag overlay */}
+              <DragOverlay
+                adjustScale={false}
+                dropAnimation={{
+                  duration: 300,
+                  easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
+                }}
+              >
                 {activeBookmark ? (
-                  <div style={{ opacity: 0.9, transform: 'scale(1.05)', cursor: 'grabbing' }}>
+                  <motion.div
+                    initial={{ scale: 1, rotate: 0 }}
+                    animate={{ scale: 1.12, rotate: 2 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                    style={{
+                      cursor: 'grabbing',
+                      filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.6)) drop-shadow(0 0 20px rgba(124,77,255,0.4))',
+                    }}
+                  >
                     <BookmarkCard
                       {...activeBookmark}
                       onClick={() => {}}
                       onContextMenu={() => {}}
                     />
-                  </div>
+                  </motion.div>
                 ) : null}
               </DragOverlay>
             </DndContext>
