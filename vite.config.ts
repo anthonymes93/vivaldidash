@@ -6,5 +6,7 @@ export default defineConfig({
   plugins: [react()],
   define: {
     'process.env.IS_PREACT': JSON.stringify('false'),
+    'process.env.NODE_ENV': JSON.stringify('development'),
+    global: 'window',
   },
 })
