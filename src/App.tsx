@@ -147,20 +147,16 @@ function App() {
   const [bgIndex, setBgIndex] = useState(() => Math.floor(Date.now() / CYCLE_MS) % BACKGROUNDS.length);
 
   useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout>;
+    // let timeoutId: ReturnType<typeof setTimeout>;
 
     const scheduleNext = () => {
       const now = Date.now();
       const currentCalculatedIndex = Math.floor(now / CYCLE_MS) % BACKGROUNDS.length;
       setBgIndex(currentCalculatedIndex);
-      
-      // Calculate exact milliseconds until the next 15-second boundary
-      const timeToNext = CYCLE_MS - (now % CYCLE_MS);
-      timeoutId = setTimeout(scheduleNext, timeToNext);
     };
 
     scheduleNext();
-    return () => clearTimeout(timeoutId);
+    // return () => clearTimeout(timeoutId);
   }, []);
 
   const sensors = useSensors(
