@@ -1,13 +1,30 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  collection, 
-  onSnapshot, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  rectSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import {
+  collection,
+  onSnapshot,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
   setDoc,
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -54,6 +71,41 @@ const INITIAL_BOOKMARKS: Bookmark[] = [
   { id: 'gamma', title: 'Gamma Site', url: 'https://gamma.app', order: 21 },
 ];
 
+// ─── Sortable Bookmark Item ────────────────────────────────────────────────
+function SortableBookmarkItem({
+  bookmark,
+  onContextMenu,
+  onClick,
+  isDragging,
+}: {
+  bookmark: Bookmark;
+  onContextMenu: (e: React.MouseEvent, id: string) => void;
+  onClick: (id: string) => void;
+  isDragging: boolean;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
+    id: bookmark.id,
+  });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.3 : 1,
+    cursor: 'grab',
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <BookmarkCard
+        {...bookmark}
+        onClick={() => onClick(bookmark.id)}
+        onContextMenu={onContextMenu}
+      />
+    </div>
+  );
+}
+
+// ─── App ──────────────────────────────────────────────────────────────────
 function App() {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [gridColumns, setGridColumns] = useState<number>(7);
@@ -61,18 +113,18 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [editData, setEditData] = useState<Bookmark | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, id: string } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; id: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [draggedId, setDraggedId] = useState<string | null>(null);
-  const gridRef = useRef<HTMLDivElement>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  );
 
   useEffect(() => {
     const unsubBookmarks = onSnapshot(collection(db, 'bookmarks'), (snapshot) => {
       const items: Bookmark[] = [];
-      snapshot.forEach((doc) => {
-        items.push({ id: doc.id, ...doc.data() } as Bookmark);
-      });
-      
+      snapshot.forEach((d) => items.push({ id: d.id, ...d.data() } as Bookmark));
       items.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
       if (items.length === 0 && isLoading) {
@@ -83,16 +135,11 @@ function App() {
       }
     });
 
-    const unsubSettings = onSnapshot(doc(db, 'settings', 'dashboard'), (doc) => {
-      if (doc.exists()) {
-        setGridColumns(doc.data().gridColumns || 7);
-      }
+    const unsubSettings = onSnapshot(doc(db, 'settings', 'dashboard'), (d) => {
+      if (d.exists()) setGridColumns(d.data().gridColumns || 7);
     });
 
-    return () => {
-      unsubBookmarks();
-      unsubSettings();
-    };
+    return () => { unsubBookmarks(); unsubSettings(); };
   }, [isLoading]);
 
   const seedDatabase = async () => {
@@ -104,9 +151,8 @@ function App() {
   };
 
   const addBookmark = async (title: string, url: string) => {
-    const nextOrder = bookmarks.length > 0 
-      ? Math.max(...bookmarks.map(b => b.order ?? 0)) + 1 
-      : 0;
+    const nextOrder = bookmarks.length > 0
+      ? Math.max(...bookmarks.map(b => b.order ?? 0)) + 1 : 0;
     await addDoc(collection(db, 'bookmarks'), { title, url, order: nextOrder });
   };
 
@@ -127,50 +173,28 @@ function App() {
     await setDoc(doc(db, 'settings', 'dashboard'), { gridColumns: cols }, { merge: true });
   };
 
-  const moveBookmark = (dragIndex: number, hoverIndex: number) => {
-    if (dragIndex === hoverIndex) return;
-    const newBookmarks = [...bookmarks];
-    const dragItem = newBookmarks[dragIndex];
-    newBookmarks.splice(dragIndex, 1);
-    newBookmarks.splice(hoverIndex, 0, dragItem);
-    setBookmarks(newBookmarks);
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
   };
 
-  const syncOrderToFirebase = async (finalBookmarks: Bookmark[]) => {
-    // Only update if order actually changed to save writes
-    const batch = finalBookmarks.map((b, index) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveId(null);
+
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = bookmarks.findIndex(b => b.id === active.id);
+    const newIndex = bookmarks.findIndex(b => b.id === over.id);
+    const reordered = arrayMove(bookmarks, oldIndex, newIndex);
+
+    setBookmarks(reordered); // Optimistic update
+
+    // Persist to Firestore
+    reordered.forEach(async (b, index) => {
       if (b.order !== index) {
-        return updateDoc(doc(db, 'bookmarks', b.id), { order: index });
+        await updateDoc(doc(db, 'bookmarks', b.id), { order: index });
       }
-      return null;
-    }).filter(Boolean);
-    
-    await Promise.all(batch);
-  };
-
-  const handleDrag = (index: number, info: any) => {
-    if (!gridRef.current) return;
-    
-    const { x, y } = info.point;
-    const gridRect = gridRef.current.getBoundingClientRect();
-    
-    // Calculate local coordinates within the grid
-    const localX = x - gridRect.left;
-    const localY = y - gridRect.top;
-    
-    // Each item is 120px + 24px gap = 144px
-    const col = Math.floor(localX / 144);
-    const row = Math.floor(localY / 144);
-    
-    // Constrain to valid grid bounds
-    const safeCol = Math.max(0, Math.min(col, gridColumns - 1));
-    const safeRow = Math.max(0, row);
-    
-    const targetIndex = safeRow * gridColumns + safeCol;
-    
-    if (targetIndex >= 0 && targetIndex < bookmarks.length && targetIndex !== index) {
-      moveBookmark(index, targetIndex);
-    }
+    });
   };
 
   const handleContextMenu = useCallback((e: React.MouseEvent, id: string) => {
@@ -179,28 +203,24 @@ function App() {
   }, []);
 
   const handleBookmarkClick = (id: string) => {
-    if (draggedId) return;
+    if (activeId) return; // Don't navigate while dragging
     const bookmark = bookmarks.find(b => b.id === id);
-    if (bookmark) {
-      window.location.href = bookmark.url;
-    }
+    if (bookmark) window.location.href = bookmark.url;
   };
 
   const handleEditRequest = (id: string) => {
     const bookmark = bookmarks.find(b => b.id === id);
-    if (bookmark) {
-      setEditData(bookmark);
-      setIsModalOpen(true);
-    }
+    if (bookmark) { setEditData(bookmark); setIsModalOpen(true); }
   };
 
   const expandedBookmark = bookmarks.find(b => b.id === expandedId);
+  const activeBookmark = bookmarks.find(b => b.id === activeId);
 
   return (
     <div className="dashboard-container" onClick={() => setContextMenu(null)}>
-      <TopBar 
-        onAddClick={() => setIsModalOpen(true)} 
-        onSettingsClick={() => setIsSettingsOpen(true)} 
+      <TopBar
+        onAddClick={() => setIsModalOpen(true)}
+        onSettingsClick={() => setIsSettingsOpen(true)}
       />
 
       <motion.img
@@ -248,78 +268,76 @@ function App() {
           >
             <SearchBar />
 
-            <div 
-              ref={gridRef}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: `repeat(${gridColumns}, 120px)`,
-                gap: '24px',
-                justifyContent: 'center',
-                width: '100%',
-                padding: '20px',
-                transition: 'grid-template-columns 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
-                position: 'relative',
-              }}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
             >
-              {bookmarks.map((bookmark, index) => (
-                <motion.div
-                  key={bookmark.id}
-                  layout
-                  drag
-                  dragTransition={{ bounceStiffness: 600, bounceDamping: 30 }}
-                  dragElastic={0.1}
-                  onDragStart={() => setDraggedId(bookmark.id)}
-                  onDrag={(e, info) => handleDrag(index, info)}
-                  onDragEnd={() => {
-                    setDraggedId(null);
-                    syncOrderToFirebase(bookmarks);
-                  }}
+              <SortableContext items={bookmarks.map(b => b.id)} strategy={rectSortingStrategy}>
+                <div
                   style={{
-                    zIndex: draggedId === bookmark.id ? 100 : 1,
-                    cursor: draggedId === bookmark.id ? 'grabbing' : 'grab',
+                    display: 'grid',
+                    gridTemplateColumns: `repeat(${gridColumns}, 120px)`,
+                    gap: '24px',
+                    justifyContent: 'center',
+                    width: '100%',
+                    padding: '20px',
+                    transition: 'grid-template-columns 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
                   }}
                 >
-                  <BookmarkCard
-                    {...bookmark}
-                    onClick={() => handleBookmarkClick(bookmark.id)}
-                    onContextMenu={handleContextMenu}
-                  />
-                </motion.div>
-              ))}
+                  {bookmarks.map((bookmark) => (
+                    <SortableBookmarkItem
+                      key={bookmark.id}
+                      bookmark={bookmark}
+                      onContextMenu={handleContextMenu}
+                      onClick={handleBookmarkClick}
+                      isDragging={activeId === bookmark.id}
+                    />
+                  ))}
 
-              <motion.button
-                layout
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => {
-                  setEditData(null);
-                  setIsModalOpen(true);
-                }}
-                className="glass-card"
-                style={{
-                  width: '120px',
-                  height: '120px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'rgba(255, 255, 255, 0.4)',
-                }}
-              >
-                <Plus size={32} />
-                <span style={{ fontSize: '13px', marginTop: '8px' }}>Add</span>
-              </motion.button>
-            </div>
+                  {/* Add button sits outside the sortable context */}
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => { setEditData(null); setIsModalOpen(true); }}
+                    className="glass-card"
+                    style={{
+                      width: '120px',
+                      height: '120px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'rgba(255, 255, 255, 0.4)',
+                    }}
+                  >
+                    <Plus size={32} />
+                    <span style={{ fontSize: '13px', marginTop: '8px' }}>Add</span>
+                  </motion.button>
+                </div>
+              </SortableContext>
+
+              {/* Drag overlay — shows a "ghost" card while dragging */}
+              <DragOverlay adjustScale={true}>
+                {activeBookmark ? (
+                  <div style={{ opacity: 0.9, transform: 'scale(1.05)', cursor: 'grabbing' }}>
+                    <BookmarkCard
+                      {...activeBookmark}
+                      onClick={() => {}}
+                      onContextMenu={() => {}}
+                    />
+                  </div>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
           </motion.div>
         )}
       </AnimatePresence>
 
       <AddBookmarkModal
         isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditData(null);
-        }}
+        onClose={() => { setIsModalOpen(false); setEditData(null); }}
         onAdd={addBookmark}
         onEdit={editBookmark}
         editData={editData}
