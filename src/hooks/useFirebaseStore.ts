@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { createTLStore, defaultShapeUtils, type TLRecord } from 'tldraw';
-import { doc, getDoc, onSnapshot, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
 // Filter out ephemeral local state (like camera position, selection, user cursors)
@@ -13,10 +13,6 @@ export function useFirebaseStore(documentId: string = 'main') {
   const [storeReady, setStoreReady] = useState(false);
 
   useEffect(() => {
-    let unsubscribeSnapshot: () => void;
-    let unsubscribeStore: () => void;
-    let isSaving = false;
-
     const setup = async () => {
       const docRef = doc(db, 'whiteboards', documentId);
       
@@ -35,41 +31,35 @@ export function useFirebaseStore(documentId: string = 'main') {
       setStoreReady(true);
 
       // 2. Listen to Firestore changes (Remote -> Local)
-      unsubscribeSnapshot = onSnapshot(docRef, (docSnap) => {
-        if (!docSnap.exists() || isSaving) return;
-        const remoteRecords = docSnap.data().records as TLRecord[];
-        if (remoteRecords) {
-          store.mergeRemoteChanges(() => {
-            store.put(remoteRecords);
-          });
-        }
-      });
+      // unsubscribeSnapshot = onSnapshot(docRef, (docSnap) => {
+      //   if (!docSnap.exists() || isSaving) return;
+      //   const remoteRecords = docSnap.data().records as TLRecord[];
+      //   if (remoteRecords) {
+      //     store.mergeRemoteChanges(() => {
+      //       store.put(remoteRecords);
+      //     });
+      //   }
+      // });
 
       // 3. Listen to Tldraw changes (Local -> Remote)
-      let timeout: ReturnType<typeof setTimeout>;
-      unsubscribeStore = store.listen((update) => {
-        if (update.source !== 'user') return;
+      // let timeout: ReturnType<typeof setTimeout>;
+      // unsubscribeStore = store.listen((update) => {
+      //   if (update.source !== 'user') return;
 
-        clearTimeout(timeout);
-        timeout = setTimeout(async () => {
-          isSaving = true;
-          try {
-            const shareableRecords = store.allRecords().filter(isShareable);
-            await setDoc(docRef, { records: shareableRecords }, { merge: true });
-          } finally {
-            // Briefly ignore incoming snapshots right after saving to prevent echo jitter
-            setTimeout(() => { isSaving = false; }, 500);
-          }
-        }, 1000); // 1s debounce to save Firebase quota
-      });
+      //   clearTimeout(timeout);
+      //   timeout = setTimeout(async () => {
+      //     isSaving = true;
+      //     try {
+      //       const shareableRecords = store.allRecords().filter(isShareable);
+      //       await setDoc(docRef, { records: shareableRecords }, { merge: true });
+      //     } finally {
+      //       setTimeout(() => { isSaving = false; }, 500);
+      //     }
+      //   }, 1000); // 1s debounce to save Firebase quota
+      // });
     };
 
     setup();
-
-    return () => {
-      if (unsubscribeSnapshot) unsubscribeSnapshot();
-      if (unsubscribeStore) unsubscribeStore();
-    };
   }, [store, documentId]);
 
   return { store, storeReady };
