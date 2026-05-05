@@ -9,9 +9,6 @@ import {
   deleteDoc, 
   doc, 
   setDoc,
-  getDocs,
-  query,
-  limit
 } from 'firebase/firestore';
 import { db } from './firebase';
 
