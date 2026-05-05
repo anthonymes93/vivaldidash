@@ -64,6 +64,7 @@ function App() {
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, id: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [draggedId, setDraggedId] = useState<string | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const unsubBookmarks = onSnapshot(collection(db, 'bookmarks'), (snapshot) => {
@@ -127,6 +128,7 @@ function App() {
   };
 
   const moveBookmark = (dragIndex: number, hoverIndex: number) => {
+    if (dragIndex === hoverIndex) return;
     const newBookmarks = [...bookmarks];
     const dragItem = newBookmarks[dragIndex];
     newBookmarks.splice(dragIndex, 1);
@@ -135,11 +137,40 @@ function App() {
   };
 
   const syncOrderToFirebase = async (finalBookmarks: Bookmark[]) => {
-    finalBookmarks.forEach(async (b, index) => {
+    // Only update if order actually changed to save writes
+    const batch = finalBookmarks.map((b, index) => {
       if (b.order !== index) {
-        await updateDoc(doc(db, 'bookmarks', b.id), { order: index });
+        return updateDoc(doc(db, 'bookmarks', b.id), { order: index });
       }
-    });
+      return null;
+    }).filter(Boolean);
+    
+    await Promise.all(batch);
+  };
+
+  const handleDrag = (index: number, info: any) => {
+    if (!gridRef.current) return;
+    
+    const { x, y } = info.point;
+    const gridRect = gridRef.current.getBoundingClientRect();
+    
+    // Calculate local coordinates within the grid
+    const localX = x - gridRect.left;
+    const localY = y - gridRect.top;
+    
+    // Each item is 120px + 24px gap = 144px
+    const col = Math.floor(localX / 144);
+    const row = Math.floor(localY / 144);
+    
+    // Constrain to valid grid bounds
+    const safeCol = Math.max(0, Math.min(col, gridColumns - 1));
+    const safeRow = Math.max(0, row);
+    
+    const targetIndex = safeRow * gridColumns + safeCol;
+    
+    if (targetIndex >= 0 && targetIndex < bookmarks.length && targetIndex !== index) {
+      moveBookmark(index, targetIndex);
+    }
   };
 
   const handleContextMenu = useCallback((e: React.MouseEvent, id: string) => {
@@ -148,7 +179,7 @@ function App() {
   }, []);
 
   const handleBookmarkClick = (id: string) => {
-    if (draggedId) return; // Prevent click while dragging
+    if (draggedId) return;
     const bookmark = bookmarks.find(b => b.id === id);
     if (bookmark) {
       window.location.href = bookmark.url;
@@ -217,46 +248,31 @@ function App() {
           >
             <SearchBar />
 
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: `repeat(${gridColumns}, 120px)`,
-              gap: '24px',
-              justifyContent: 'center',
-              width: '100%',
-              padding: '20px',
-              transition: 'grid-template-columns 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
-              position: 'relative',
-            }}>
+            <div 
+              ref={gridRef}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: `repeat(${gridColumns}, 120px)`,
+                gap: '24px',
+                justifyContent: 'center',
+                width: '100%',
+                padding: '20px',
+                transition: 'grid-template-columns 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+                position: 'relative',
+              }}
+            >
               {bookmarks.map((bookmark, index) => (
                 <motion.div
                   key={bookmark.id}
                   layout
                   drag
-                  dragTransition={{ bounceStiffness: 600, bounceDamping: 20 }}
-                  dragElastic={1}
+                  dragTransition={{ bounceStiffness: 600, bounceDamping: 30 }}
+                  dragElastic={0.1}
                   onDragStart={() => setDraggedId(bookmark.id)}
+                  onDrag={(e, info) => handleDrag(index, info)}
                   onDragEnd={() => {
                     setDraggedId(null);
                     syncOrderToFirebase(bookmarks);
-                  }}
-                  onViewportBoxUpdate={(_, delta) => {
-                    if (draggedId !== bookmark.id) return;
-                    
-                    // Simple collision detection for grid reordering
-                    const x = delta.x.translate;
-                    const y = delta.y.translate;
-                    
-                    // Calculate how many items to move based on drag distance
-                    // Each item is ~144px wide/tall including gap
-                    const colMove = Math.round(x / 144);
-                    const rowMove = Math.round(y / 144);
-                    
-                    if (colMove !== 0 || rowMove !== 0) {
-                      const newIndex = index + colMove + (rowMove * gridColumns);
-                      if (newIndex >= 0 && newIndex < bookmarks.length && newIndex !== index) {
-                        moveBookmark(index, newIndex);
-                      }
-                    }
                   }}
                   style={{
                     zIndex: draggedId === bookmark.id ? 100 : 1,
