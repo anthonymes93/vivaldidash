@@ -63,7 +63,6 @@ function App() {
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, id: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 1. Listen for real-time updates from Firestore
   useEffect(() => {
     const unsubBookmarks = onSnapshot(collection(db, 'bookmarks'), (snapshot) => {
       const items: Bookmark[] = [];
@@ -72,7 +71,6 @@ function App() {
       });
       
       if (items.length === 0 && isLoading) {
-        // Migration: If Firestore is empty, seed it with INITIAL_BOOKMARKS
         seedDatabase();
       } else {
         setBookmarks(items);
@@ -93,7 +91,6 @@ function App() {
   }, [isLoading]);
 
   const seedDatabase = async () => {
-    console.log('Seeding database with initial bookmarks...');
     for (const b of INITIAL_BOOKMARKS) {
       const { id, ...data } = b;
       await setDoc(doc(db, 'bookmarks', id), data);
@@ -101,7 +98,6 @@ function App() {
     setIsLoading(false);
   };
 
-  // CRUD Operations
   const addBookmark = async (title: string, url: string) => {
     await addDoc(collection(db, 'bookmarks'), { title, url });
   };
@@ -119,7 +115,7 @@ function App() {
   };
 
   const updateGridColumns = async (cols: number) => {
-    setGridColumns(cols); // Optimistic update
+    setGridColumns(cols);
     await setDoc(doc(db, 'settings', 'dashboard'), { gridColumns: cols }, { merge: true });
   };
 
@@ -145,20 +141,6 @@ function App() {
 
   const expandedBookmark = bookmarks.find(b => b.id === expandedId);
 
-  if (isLoading) {
-    return (
-      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0a0a', color: 'white' }}>
-        <motion.div
-          animate={{ scale: [1, 1.1, 1], opacity: [0.5, 1, 0.5] }}
-          transition={{ repeat: Infinity, duration: 1.5 }}
-          style={{ fontSize: '18px', letterSpacing: '2px', fontWeight: 300 }}
-        >
-          SYNCING...
-        </motion.div>
-      </div>
-    );
-  }
-
   return (
     <div className="dashboard-container" onClick={() => setContextMenu(null)}>
       <TopBar 
@@ -175,62 +157,87 @@ function App() {
         alt="background"
       />
 
-      <div style={{
-        marginTop: '60px',
-        width: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        paddingBottom: '100px',
-        overflowY: 'auto',
-        maxHeight: 'calc(100vh - 64px)',
-      }}>
-        <SearchBar />
-
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: `repeat(${gridColumns}, 120px)`,
-          gap: '24px',
-          justifyContent: 'center',
-          width: '1200px',
-          maxWidth: '95%',
-          padding: '20px',
-          transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
-        }}>
-          <AnimatePresence>
-            {bookmarks.map((bookmark) => (
-              <BookmarkCard
-                key={bookmark.id}
-                {...bookmark}
-                onClick={() => handleBookmarkClick(bookmark.id)}
-                onContextMenu={handleContextMenu}
-              />
-            ))}
-          </AnimatePresence>
-
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => {
-              setEditData(null);
-              setIsModalOpen(true);
-            }}
-            className="glass-card"
+      <AnimatePresence mode="wait">
+        {isLoading ? (
+          <motion.div
+            key="loader"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', zIndex: 10 }}
+          >
+            <motion.div
+              animate={{ scale: [1, 1.1, 1], opacity: [0.5, 1, 0.5] }}
+              transition={{ repeat: Infinity, duration: 1.5 }}
+              style={{ fontSize: '18px', letterSpacing: '2px', fontWeight: 300 }}
+            >
+              SYNCING...
+            </motion.div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="content"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             style={{
-              width: '120px',
-              height: '120px',
+              width: '100%',
+              height: '100vh',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              justifyContent: 'center',
-              color: 'rgba(255, 255, 255, 0.4)',
+              paddingTop: '15vh',
+              paddingBottom: '100px',
+              overflowY: 'auto',
+              zIndex: 1,
             }}
           >
-            <Plus size={32} />
-            <span style={{ fontSize: '13px', marginTop: '8px' }}>Add</span>
-          </motion.button>
-        </div>
-      </div>
+            <SearchBar />
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${gridColumns}, 120px)`,
+              gap: '24px',
+              justifyContent: 'center',
+              width: '100%',
+              padding: '20px',
+              transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+            }}>
+              <AnimatePresence>
+                {bookmarks.map((bookmark) => (
+                  <BookmarkCard
+                    key={bookmark.id}
+                    {...bookmark}
+                    onClick={() => handleBookmarkClick(bookmark.id)}
+                    onContextMenu={handleContextMenu}
+                  />
+                ))}
+              </AnimatePresence>
+
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  setEditData(null);
+                  setIsModalOpen(true);
+                }}
+                className="glass-card"
+                style={{
+                  width: '120px',
+                  height: '120px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'rgba(255, 255, 255, 0.4)',
+                }}
+              >
+                <Plus size={32} />
+                <span style={{ fontSize: '13px', marginTop: '8px' }}>Add</span>
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AddBookmarkModal
         isOpen={isModalOpen}
