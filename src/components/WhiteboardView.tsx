@@ -1,7 +1,9 @@
 import React from 'react';
 import { Tldraw } from 'tldraw';
+import { getAssetUrlsByMetaUrl } from '@tldraw/assets/urls';
 import 'tldraw/tldraw.css';
 
+const assetUrls = getAssetUrlsByMetaUrl();
 
 const WhiteboardView: React.FC = () => {
   return (
@@ -9,6 +11,7 @@ const WhiteboardView: React.FC = () => {
       <Tldraw 
         persistenceKey="vivaldidash-test-whiteboard"
         inferDarkMode={true}
+        assetUrls={assetUrls}
       />
       <style>{`
         .tl-ui-layout {
