@@ -1,15 +1,27 @@
 import React from 'react';
 import { Excalidraw } from '@excalidraw/excalidraw';
 import '@excalidraw/excalidraw/index.css';
+import { useExcalidrawSync } from '../hooks/useExcalidrawSync';
 
 const WhiteboardView: React.FC = () => {
+  const { isReady, initialElements, setExcalidrawAPI, handleLocalChange } = useExcalidrawSync('main');
+
   return (
     <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, zIndex: 5 }}>
-      <Excalidraw 
-        theme="dark" 
-        zenModeEnabled={false}
-        viewModeEnabled={false}
-      />
+      {isReady ? (
+        <Excalidraw 
+          theme="dark" 
+          zenModeEnabled={false}
+          viewModeEnabled={false}
+          initialData={{ elements: initialElements }}
+          excalidrawAPI={(api) => setExcalidrawAPI(api)}
+          onChange={(elements) => handleLocalChange(elements)}
+        />
+      ) : (
+        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+          LOADING WORKSPACE...
+        </div>
+      )}
       <style>{`
         .excalidraw {
           --color-background-default: #0f0f13 !important;
