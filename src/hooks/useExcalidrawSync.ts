@@ -63,7 +63,10 @@ export function useExcalidrawSync(documentId: string = 'main') {
         const docRef = doc(db, 'whiteboards', documentId);
         // We only save the elements. We filter out deleted elements to save space.
         const activeElements = elements.filter(el => !el.isDeleted);
-        await setDoc(docRef, { elements: activeElements }, { merge: true });
+        // Firestore rejects "undefined" values which Excalidraw heavily uses.
+        // We strip them out by passing the elements through JSON stringify/parse.
+        const cleanElements = JSON.parse(JSON.stringify(activeElements));
+        await setDoc(docRef, { elements: cleanElements }, { merge: true });
       } catch (e) {
         console.error("Failed to save whiteboard to Firebase:", e);
       } finally {
