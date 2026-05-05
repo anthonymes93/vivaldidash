@@ -1,0 +1,99 @@
+import React, { useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Trash2, Edit3, Maximize2 } from 'lucide-react';
+
+interface ContextMenuProps {
+  x: number;
+  y: number;
+  isOpen: boolean;
+  onClose: () => void;
+  onRemove: () => void;
+  onEdit: () => void;
+  onExpand: () => void;
+}
+
+const ContextMenu: React.FC<ContextMenuProps> = ({
+  x,
+  y,
+  isOpen,
+  onClose,
+  onRemove,
+  onEdit,
+  onExpand,
+}) => {
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen, onClose]);
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          ref={menuRef}
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          style={{
+            position: 'fixed',
+            top: y,
+            left: x,
+            zIndex: 1000,
+            minWidth: '160px',
+            padding: '8px',
+          }}
+          className="glass"
+        >
+          <div className="context-menu-item" onClick={() => { onExpand(); onClose(); }}>
+            <Maximize2 size={16} />
+            <span>Expand</span>
+          </div>
+          <div className="context-menu-item" onClick={() => { onEdit(); onClose(); }}>
+            <Edit3 size={16} />
+            <span>Edit Bookmark</span>
+          </div>
+          <div className="context-menu-item danger" onClick={() => { onRemove(); onClose(); }}>
+            <Trash2 size={16} />
+            <span>Remove</span>
+          </div>
+
+          <style>{`
+            .context-menu-item {
+              display: flex;
+              align-items: center;
+              gap: 12px;
+              padding: 10px 12px;
+              border-radius: 8px;
+              cursor: pointer;
+              font-size: 14px;
+              color: rgba(255, 255, 255, 0.8);
+              transition: all 0.2s;
+            }
+            .context-menu-item:hover {
+              background: rgba(255, 255, 255, 0.1);
+              color: white;
+            }
+            .context-menu-item.danger:hover {
+              background: rgba(255, 59, 48, 0.2);
+              color: #ff3b30;
+            }
+          `}</style>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
+
+export default ContextMenu;
