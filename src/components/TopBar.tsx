@@ -1,11 +1,12 @@
 import React from 'react';
-import { Plus, LayoutDashboard, Calendar, Settings as SettingsIcon } from 'lucide-react';
+import { Plus, LayoutDashboard, Calendar, Settings as SettingsIcon, PenTool } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useDroppable } from '@dnd-kit/core';
 
 const PAGES = [
   { id: 'dashboard', name: 'Dashboard', icon: <LayoutDashboard size={18} /> },
   { id: 'calendar', name: 'Calendar', icon: <Calendar size={18} /> },
+  { id: 'whiteboard', name: 'Whiteboard', icon: <PenTool size={18} /> },
 ];
 
 interface TopBarProps {

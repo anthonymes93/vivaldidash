@@ -36,6 +36,7 @@ import ContextMenu from './components/ContextMenu';
 import ExpandedView from './components/ExpandedView';
 import TopBar from './components/TopBar';
 import SettingsModal from './components/SettingsModal';
+import WhiteboardView from './components/WhiteboardView';
 import './App.css';
 
 interface Bookmark {
@@ -360,15 +361,19 @@ function App() {
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                paddingTop: '15vh',
-                paddingBottom: '100px',
-                overflowY: 'auto',
+                paddingTop: activePage === 'whiteboard' ? '0' : '15vh',
+                paddingBottom: activePage === 'whiteboard' ? '0' : '100px',
+                overflowY: activePage === 'whiteboard' ? 'hidden' : 'auto',
                 zIndex: 1,
               }}
             >
-              <SearchBar />
+              {activePage === 'whiteboard' ? (
+                <WhiteboardView />
+              ) : (
+                <>
+                  <SearchBar />
 
-              {pageBookmarks.length === 0 && !isLoading ? (
+                  {pageBookmarks.length === 0 && !isLoading ? (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -430,7 +435,9 @@ function App() {
                   </div>
                 </SortableContext>
               )}
-            </motion.div>
+            </>
+          )}
+        </motion.div>
           )}
         </AnimatePresence>
 
