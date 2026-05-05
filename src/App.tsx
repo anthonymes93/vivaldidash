@@ -138,15 +138,27 @@ function App() {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; id: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [bgIndex, setBgIndex] = useState(0);
-
   const BACKGROUNDS = ['/bg1.png', '/bg2.png', '/bg3.png', '/bg4.png', '/bg5.png'];
+  const CYCLE_MS = 15000;
+
+  // Initialize with the globally synchronized index
+  const [bgIndex, setBgIndex] = useState(() => Math.floor(Date.now() / CYCLE_MS) % BACKGROUNDS.length);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setBgIndex((prev) => (prev + 1) % BACKGROUNDS.length);
-    }, 15000);
-    return () => clearInterval(interval);
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const scheduleNext = () => {
+      const now = Date.now();
+      const currentCalculatedIndex = Math.floor(now / CYCLE_MS) % BACKGROUNDS.length;
+      setBgIndex(currentCalculatedIndex);
+      
+      // Calculate exact milliseconds until the next 15-second boundary
+      const timeToNext = CYCLE_MS - (now % CYCLE_MS);
+      timeoutId = setTimeout(scheduleNext, timeToNext);
+    };
+
+    scheduleNext();
+    return () => clearTimeout(timeoutId);
   }, []);
 
   const sensors = useSensors(
