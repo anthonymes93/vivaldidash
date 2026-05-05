@@ -37,6 +37,7 @@ import ExpandedView from './components/ExpandedView';
 import TopBar from './components/TopBar';
 import SettingsModal from './components/SettingsModal';
 import WhiteboardView from './components/WhiteboardView';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import './App.css';
 
 interface Bookmark {
@@ -368,7 +369,9 @@ function App() {
               }}
             >
               {activePage === 'whiteboard' ? (
-                <WhiteboardView />
+                <ErrorBoundary>
+                  <WhiteboardView />
+                </ErrorBoundary>
               ) : (
                 <>
                   <SearchBar />
