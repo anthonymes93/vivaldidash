@@ -7,6 +7,9 @@
     <title>vivaldidash</title>
   </head>
   <body>
+    <script>
+      window.process = { env: { NODE_ENV: 'development', IS_PREACT: false } };
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
