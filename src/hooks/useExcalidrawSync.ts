@@ -70,12 +70,12 @@ export function useExcalidrawSync(documentId: string = 'main') {
       } catch (e) {
         console.error("Failed to save whiteboard to Firebase:", e);
       } finally {
-        // Wait an extra 500ms before accepting remote snapshots to prevent echo jitter
+        // Wait an extra 200ms before accepting remote snapshots to prevent echo jitter
         setTimeout(() => {
           isSavingRef.current = false;
-        }, 500);
+        }, 200);
       }
-    }, 1500);
+    }, 300);
   };
 
   return {
