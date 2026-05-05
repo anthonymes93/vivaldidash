@@ -321,7 +321,6 @@ function App() {
                       onContextMenu={handleContextMenu}
                       onClick={handleBookmarkClick}
                       isDragging={activeId === bookmark.id}
-                      isAnyDragging={!!activeId}
                     />
                   ))}
 
