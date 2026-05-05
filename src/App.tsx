@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -26,31 +26,32 @@ interface Bookmark {
   title: string;
   url: string;
   notes?: string;
+  order?: number;
 }
 
 const INITIAL_BOOKMARKS: Bookmark[] = [
-  { id: 'skool', title: 'Skool', url: 'https://skool.com' },
-  { id: 'youtube', title: 'YouTube', url: 'https://youtube.com' },
-  { id: 'codecademy', title: 'Codecademy', url: 'https://codecademy.com' },
-  { id: 'quo', title: 'Quo', url: 'https://quo.com' },
-  { id: 'callrail', title: 'Call Rail', url: 'https://callrail.com' },
-  { id: 'ads', title: 'Google Ads', url: 'https://ads.google.com' },
-  { id: 'unbounce', title: 'Unbounce', url: 'https://unbounce.com' },
-  { id: 'mike', title: 'Mike Andes', url: 'https://mikeandes.com' },
-  { id: 'hotjar', title: 'Hotjar', url: 'https://hotjar.com' },
-  { id: 'clarity', title: 'Clarity', url: 'https://clarity.ms' },
-  { id: 'clickup', title: 'ClickUp', url: 'https://clickup.com' },
-  { id: 'notion', title: 'Notion', url: 'https://notion.so' },
-  { id: 'vapi', title: 'Vapi', url: 'https://vapi.ai' },
-  { id: 'retell', title: 'Retell', url: 'https://retellai.com' },
-  { id: 'calendly', title: 'Calendly', url: 'https://calendly.com' },
-  { id: 'miro', title: 'Miro', url: 'https://miro.com' },
-  { id: 'claude', title: 'Claude Code', url: 'https://claude.ai' },
-  { id: 'optimizer', title: 'The Optimizer', url: 'https://theoptimizer.io' },
-  { id: '360nerds', title: '360nerds', url: 'https://360nerds.com' },
-  { id: 'elevenlabs', title: 'Elevenlabs', url: 'https://elevenlabs.io' },
-  { id: 'retell-gcal', title: 'Retell G Cal', url: 'https://retellai.com' },
-  { id: 'gamma', title: 'Gamma Site', url: 'https://gamma.app' },
+  { id: 'skool', title: 'Skool', url: 'https://skool.com', order: 0 },
+  { id: 'youtube', title: 'YouTube', url: 'https://youtube.com', order: 1 },
+  { id: 'codecademy', title: 'Codecademy', url: 'https://codecademy.com', order: 2 },
+  { id: 'quo', title: 'Quo', url: 'https://quo.com', order: 3 },
+  { id: 'callrail', title: 'Call Rail', url: 'https://callrail.com', order: 4 },
+  { id: 'ads', title: 'Google Ads', url: 'https://ads.google.com', order: 5 },
+  { id: 'unbounce', title: 'Unbounce', url: 'https://unbounce.com', order: 6 },
+  { id: 'mike', title: 'Mike Andes', url: 'https://mikeandes.com', order: 7 },
+  { id: 'hotjar', title: 'Hotjar', url: 'https://hotjar.com', order: 8 },
+  { id: 'clarity', title: 'Clarity', url: 'https://clarity.ms', order: 9 },
+  { id: 'clickup', title: 'ClickUp', url: 'https://clickup.com', order: 10 },
+  { id: 'notion', title: 'Notion', url: 'https://notion.so', order: 11 },
+  { id: 'vapi', title: 'Vapi', url: 'https://vapi.ai', order: 12 },
+  { id: 'retell', title: 'Retell', url: 'https://retellai.com', order: 13 },
+  { id: 'calendly', title: 'Calendly', url: 'https://calendly.com', order: 14 },
+  { id: 'miro', title: 'Miro', url: 'https://miro.com', order: 15 },
+  { id: 'claude', title: 'Claude Code', url: 'https://claude.ai', order: 16 },
+  { id: 'optimizer', title: 'The Optimizer', url: 'https://theoptimizer.io', order: 17 },
+  { id: '360nerds', title: '360nerds', url: 'https://360nerds.com', order: 18 },
+  { id: 'elevenlabs', title: 'Elevenlabs', url: 'https://elevenlabs.io', order: 19 },
+  { id: 'retell-gcal', title: 'Retell G Cal', url: 'https://retellai.com', order: 20 },
+  { id: 'gamma', title: 'Gamma Site', url: 'https://gamma.app', order: 21 },
 ];
 
 function App() {
@@ -62,6 +63,7 @@ function App() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, id: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [draggedId, setDraggedId] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubBookmarks = onSnapshot(collection(db, 'bookmarks'), (snapshot) => {
@@ -70,6 +72,8 @@ function App() {
         items.push({ id: doc.id, ...doc.data() } as Bookmark);
       });
       
+      items.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
       if (items.length === 0 && isLoading) {
         seedDatabase();
       } else {
@@ -99,7 +103,10 @@ function App() {
   };
 
   const addBookmark = async (title: string, url: string) => {
-    await addDoc(collection(db, 'bookmarks'), { title, url });
+    const nextOrder = bookmarks.length > 0 
+      ? Math.max(...bookmarks.map(b => b.order ?? 0)) + 1 
+      : 0;
+    await addDoc(collection(db, 'bookmarks'), { title, url, order: nextOrder });
   };
 
   const editBookmark = async (id: string, title: string, url: string) => {
@@ -119,12 +126,29 @@ function App() {
     await setDoc(doc(db, 'settings', 'dashboard'), { gridColumns: cols }, { merge: true });
   };
 
+  const moveBookmark = (dragIndex: number, hoverIndex: number) => {
+    const newBookmarks = [...bookmarks];
+    const dragItem = newBookmarks[dragIndex];
+    newBookmarks.splice(dragIndex, 1);
+    newBookmarks.splice(hoverIndex, 0, dragItem);
+    setBookmarks(newBookmarks);
+  };
+
+  const syncOrderToFirebase = async (finalBookmarks: Bookmark[]) => {
+    finalBookmarks.forEach(async (b, index) => {
+      if (b.order !== index) {
+        await updateDoc(doc(db, 'bookmarks', b.id), { order: index });
+      }
+    });
+  };
+
   const handleContextMenu = useCallback((e: React.MouseEvent, id: string) => {
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY, id });
   }, []);
 
   const handleBookmarkClick = (id: string) => {
+    if (draggedId) return; // Prevent click while dragging
     const bookmark = bookmarks.find(b => b.id === id);
     if (bookmark) {
       window.location.href = bookmark.url;
@@ -200,20 +224,55 @@ function App() {
               justifyContent: 'center',
               width: '100%',
               padding: '20px',
-              transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+              transition: 'grid-template-columns 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+              position: 'relative',
             }}>
-              <AnimatePresence>
-                {bookmarks.map((bookmark) => (
+              {bookmarks.map((bookmark, index) => (
+                <motion.div
+                  key={bookmark.id}
+                  layout
+                  drag
+                  dragTransition={{ bounceStiffness: 600, bounceDamping: 20 }}
+                  dragElastic={1}
+                  onDragStart={() => setDraggedId(bookmark.id)}
+                  onDragEnd={() => {
+                    setDraggedId(null);
+                    syncOrderToFirebase(bookmarks);
+                  }}
+                  onViewportBoxUpdate={(_, delta) => {
+                    if (draggedId !== bookmark.id) return;
+                    
+                    // Simple collision detection for grid reordering
+                    const x = delta.x.translate;
+                    const y = delta.y.translate;
+                    
+                    // Calculate how many items to move based on drag distance
+                    // Each item is ~144px wide/tall including gap
+                    const colMove = Math.round(x / 144);
+                    const rowMove = Math.round(y / 144);
+                    
+                    if (colMove !== 0 || rowMove !== 0) {
+                      const newIndex = index + colMove + (rowMove * gridColumns);
+                      if (newIndex >= 0 && newIndex < bookmarks.length && newIndex !== index) {
+                        moveBookmark(index, newIndex);
+                      }
+                    }
+                  }}
+                  style={{
+                    zIndex: draggedId === bookmark.id ? 100 : 1,
+                    cursor: draggedId === bookmark.id ? 'grabbing' : 'grab',
+                  }}
+                >
                   <BookmarkCard
-                    key={bookmark.id}
                     {...bookmark}
                     onClick={() => handleBookmarkClick(bookmark.id)}
                     onContextMenu={handleContextMenu}
                   />
-                ))}
-              </AnimatePresence>
+                </motion.div>
+              ))}
 
               <motion.button
+                layout
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => {
