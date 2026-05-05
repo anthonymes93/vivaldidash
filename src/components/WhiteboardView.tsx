@@ -4,7 +4,7 @@ import '@excalidraw/excalidraw/index.css';
 import { useExcalidrawSync } from '../hooks/useExcalidrawSync';
 
 const WhiteboardView: React.FC = () => {
-  const { isReady, initialElements, setExcalidrawAPI, handleLocalChange } = useExcalidrawSync('main');
+  const { isReady, initialElements, setExcalidrawAPI, handleLocalChange, handlePointerUpdate } = useExcalidrawSync('main');
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, zIndex: 5 }}>
@@ -16,6 +16,7 @@ const WhiteboardView: React.FC = () => {
           initialData={{ elements: initialElements }}
           excalidrawAPI={(api) => setExcalidrawAPI(api)}
           onChange={(elements) => handleLocalChange(elements)}
+          onPointerUpdate={handlePointerUpdate}
         />
       ) : (
         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
