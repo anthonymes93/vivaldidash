@@ -77,13 +77,11 @@ function SortableBookmarkItem({
   onContextMenu,
   onClick,
   isDragging,
-  isAnyDragging,
 }: {
   bookmark: Bookmark;
   onContextMenu: (e: React.MouseEvent, id: string) => void;
   onClick: (id: string) => void;
   isDragging: boolean;
-  isAnyDragging: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: bookmark.id,
@@ -116,11 +114,13 @@ function SortableBookmarkItem({
   }
 
   return (
-    <motion.div
+    <div
       ref={setNodeRef}
-      style={style}
-      animate={isAnyDragging ? { scale: 0.97 } : { scale: 1 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+      style={{
+        ...style,
+        transform: CSS.Transform.toString(transform),
+        transition: transition || 'transform 180ms ease',
+      }}
       {...attributes}
       {...listeners}
     >
@@ -129,7 +129,7 @@ function SortableBookmarkItem({
         onClick={() => onClick(bookmark.id)}
         onContextMenu={onContextMenu}
       />
-    </motion.div>
+    </div>
   );
 }
 
@@ -349,20 +349,18 @@ function App() {
 
               {/* Premium drag overlay */}
               <DragOverlay
-                adjustScale={false}
                 dropAnimation={{
-                  duration: 300,
+                  duration: 250,
                   easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
                 }}
               >
                 {activeBookmark ? (
-                  <motion.div
-                    initial={{ scale: 1, rotate: 0 }}
-                    animate={{ scale: 1.12, rotate: 2 }}
-                    transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                  <div
                     style={{
                       cursor: 'grabbing',
-                      filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.6)) drop-shadow(0 0 20px rgba(124,77,255,0.4))',
+                      transform: 'scale(1.08) rotate(2deg)',
+                      filter: 'drop-shadow(0 24px 48px rgba(0,0,0,0.7)) drop-shadow(0 0 24px rgba(124,77,255,0.5))',
+                      transition: 'none',
                     }}
                   >
                     <BookmarkCard
@@ -370,7 +368,7 @@ function App() {
                       onClick={() => {}}
                       onContextMenu={() => {}}
                     />
-                  </motion.div>
+                  </div>
                 ) : null}
               </DragOverlay>
             </DndContext>
