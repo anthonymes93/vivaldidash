@@ -138,6 +138,16 @@ function App() {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; id: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [bgIndex, setBgIndex] = useState(0);
+
+  const BACKGROUNDS = ['/bg1.png', '/bg2.png', '/bg3.png', '/bg4.png', '/bg5.png'];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setBgIndex((prev) => (prev + 1) % BACKGROUNDS.length);
+    }, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -285,14 +295,28 @@ function App() {
           isDragging={!!activeId}
         />
 
-        <motion.img
-          initial={{ scale: 1.1, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 1.5 }}
-          src="/dashboard_background.png"
-          className="background-image"
-          alt="background"
-        />
+        <AnimatePresence>
+          <motion.img
+            key={bgIndex}
+            initial={{ opacity: 0, scale: 1.05 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 2, ease: "easeInOut" }}
+            src={BACKGROUNDS[bgIndex]}
+            className="background-image"
+            alt="background"
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '100vw',
+              height: '100vh',
+              objectFit: 'cover',
+              zIndex: 0,
+              pointerEvents: 'none',
+            }}
+          />
+        </AnimatePresence>
 
         <AnimatePresence mode="wait">
           {isLoading ? (
