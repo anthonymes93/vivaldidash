@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Play, Pause, ChevronLeft, ChevronRight, RefreshCcw, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
+import { Plus, Play, Pause, ChevronLeft, ChevronRight, RefreshCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   DndContext,

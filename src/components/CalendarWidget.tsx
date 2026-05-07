@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, Calendar as CalendarIcon, FileText, ExternalLink } from 'lucide-react';
-import { collection, onSnapshot, doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
 interface CalendarEvent {
