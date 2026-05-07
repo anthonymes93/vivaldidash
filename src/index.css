@@ -106,7 +106,7 @@ button {
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
-  justifyContent: center;
+  justify-content: center;
   z-index: 100;
 }
 
