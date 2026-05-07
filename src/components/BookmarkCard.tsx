@@ -7,26 +7,36 @@ interface BookmarkCardProps {
   url: string;
   onContextMenu: (e: React.MouseEvent, id: string) => void;
   onClick: () => void;
+  size?: number;
 }
 
-const BookmarkCard: React.FC<BookmarkCardProps> = ({ id, title, url, onContextMenu, onClick }) => {
-  const faviconUrl = `https://www.google.com/s2/favicons?sz=64&domain=${new URL(url).hostname}`;
+const BookmarkCard: React.FC<BookmarkCardProps> = ({ id, title, url, onContextMenu, onClick, size = 120 }) => {
+  let faviconUrl = '';
+  try {
+    const fullUrl = url.startsWith('http') ? url : `https://${url}`;
+    const domain = new URL(fullUrl).hostname;
+    faviconUrl = `https://www.google.com/s2/favicons?sz=64&domain=${domain}`;
+  } catch (e) {
+    faviconUrl = `https://ui-avatars.com/api/?name=${title}&background=random`;
+  }
+
+  const scale = size / 120;
 
   return (
     <motion.div
       layoutId={`card-${id}`}
       transition={{ type: 'spring', damping: 25, stiffness: 150 }}
-      whileHover={{ y: -5 }}
+      whileHover={{ y: -5 * scale }}
       className="glass-card bookmark-card"
       style={{
         position: 'relative',
-        width: '120px',
-        height: '120px',
+        width: `${size}px`,
+        height: `${size}px`,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '16px',
+        padding: `${16 * scale}px`,
         cursor: 'pointer',
       }}
       onClick={onClick}
@@ -36,15 +46,15 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({ id, title, url, onContextMe
         layoutId={`icon-container-${id}`}
         transition={{ type: 'spring', damping: 25, stiffness: 150 }}
         style={{
-          width: '48px',
-          height: '48px',
-          marginBottom: '12px',
+          width: `${48 * scale}px`,
+          height: `${48 * scale}px`,
+          marginBottom: `${12 * scale}px`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           background: 'rgba(255, 255, 255, 0.05)',
-          borderRadius: '12px',
-          padding: '10px',
+          borderRadius: `${12 * scale}px`,
+          padding: `${10 * scale}px`,
         }}
       >
         <motion.img
@@ -60,7 +70,7 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({ id, title, url, onContextMe
 
       <span
         style={{
-          fontSize: '13px',
+          fontSize: `${13 * scale}px`,
           fontWeight: 400,
           textAlign: 'center',
           width: '100%',

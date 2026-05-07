@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Play, Pause, ChevronLeft, ChevronRight, RefreshCcw, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   DndContext,
@@ -8,6 +8,7 @@ import {
   useSensor,
   useSensors,
   DragOverlay,
+  useDroppable,
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
@@ -15,9 +16,7 @@ import {
   arrayMove,
   SortableContext,
   rectSortingStrategy,
-  useSortable,
 } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import {
   collection,
   onSnapshot,
@@ -26,9 +25,11 @@ import {
   deleteDoc,
   doc,
   setDoc,
+  getDocs,
 } from 'firebase/firestore';
 import { db } from './firebase';
 
+import { SortableBookmarkItem } from './components/SortableBookmarkItem';
 import SearchBar from './components/SearchBar';
 import BookmarkCard from './components/BookmarkCard';
 import AddBookmarkModal from './components/AddBookmarkModal';
@@ -37,6 +38,10 @@ import ExpandedView from './components/ExpandedView';
 import TopBar from './components/TopBar';
 import SettingsModal from './components/SettingsModal';
 import WhiteboardView from './components/WhiteboardView';
+import CalendarView from './components/CalendarView';
+import CalendarWidget from './components/CalendarWidget';
+import FolderCard from './components/FolderCard';
+import FolderExpandedView from './components/FolderExpandedView';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './App.css';
 
@@ -47,6 +52,8 @@ interface Bookmark {
   notes?: string;
   order?: number;
   page?: string;
+  type?: 'bookmark' | 'folder';
+  parentId?: string;
 }
 
 const PAGE_IDS = ['dashboard', 'calendar'];
@@ -58,8 +65,8 @@ const INITIAL_BOOKMARKS: Bookmark[] = [
   { id: 'quo', title: 'Quo', url: 'https://quo.com', order: 3, page: 'dashboard' },
   { id: 'callrail', title: 'Call Rail', url: 'https://callrail.com', order: 4, page: 'dashboard' },
   { id: 'ads', title: 'Google Ads', url: 'https://ads.google.com', order: 5, page: 'dashboard' },
-  { id: 'unbounce', title: 'Unbounce', url: 'https://unbounce.com', order: 6, page: 'dashboard' },
-  { id: 'mike', title: 'Mike Andes', url: 'https://mikeandes.com', order: 7, page: 'dashboard' },
+  { id: 'unbounce', title: 'unbounce', url: 'https://unbounce.com', order: 6, page: 'dashboard' },
+  { id: 'mikeandes', title: 'Mike Andes', url: 'https://mikeandes.com', order: 7, page: 'dashboard' },
   { id: 'hotjar', title: 'Hotjar', url: 'https://hotjar.com', order: 8, page: 'dashboard' },
   { id: 'clarity', title: 'Clarity', url: 'https://clarity.ms', order: 9, page: 'dashboard' },
   { id: 'clickup', title: 'ClickUp', url: 'https://clickup.com', order: 10, page: 'dashboard' },
@@ -68,68 +75,20 @@ const INITIAL_BOOKMARKS: Bookmark[] = [
   { id: 'retell', title: 'Retell', url: 'https://retellai.com', order: 13, page: 'dashboard' },
   { id: 'calendly', title: 'Calendly', url: 'https://calendly.com', order: 14, page: 'dashboard' },
   { id: 'miro', title: 'Miro', url: 'https://miro.com', order: 15, page: 'dashboard' },
-  { id: 'claude', title: 'Claude Code', url: 'https://claude.ai', order: 16, page: 'dashboard' },
+  { id: 'claudecode', title: 'Claude Code', url: 'https://claude.ai', order: 16, page: 'dashboard' },
   { id: 'optimizer', title: 'The Optimizer', url: 'https://theoptimizer.io', order: 17, page: 'dashboard' },
   { id: '360nerds', title: '360nerds', url: 'https://360nerds.com', order: 18, page: 'dashboard' },
   { id: 'elevenlabs', title: 'Elevenlabs', url: 'https://elevenlabs.io', order: 19, page: 'dashboard' },
-  { id: 'retell-gcal', title: 'Retell G Cal', url: 'https://retellai.com', order: 20, page: 'dashboard' },
+  { id: 'retellgcal', title: 'Retell G Cal B...', url: 'https://youtube.com', order: 20, page: 'dashboard' },
   { id: 'gamma', title: 'Gamma Site', url: 'https://gamma.app', order: 21, page: 'dashboard' },
+  { id: 'motionarray', title: 'motionarray...', url: 'https://motionarray.com', order: 22, page: 'dashboard' },
+  { id: 'reeltemplates', title: 'Reel templates', url: 'https://chatgpt.com', order: 23, page: 'dashboard' },
+  { id: 'verticalstories', title: 'Vertical Stories', url: 'https://stories.com', order: 24, page: 'dashboard' },
+  { id: 'instagramreels', title: 'instagram+re...', url: 'https://instagram.com/reels', order: 25, page: 'dashboard' },
 ];
 
-// ─── Sortable Bookmark Item ────────────────────────────────────────────────
-function SortableBookmarkItem({
-  bookmark,
-  onContextMenu,
-  onClick,
-  isDragging,
-}: {
-  bookmark: Bookmark;
-  onContextMenu: (e: React.MouseEvent, id: string) => void;
-  onClick: (id: string) => void;
-  isDragging: boolean;
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
-    id: bookmark.id,
-  });
-
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition: transition || 'transform 180ms ease',
-    cursor: isDragging ? 'grabbing' : 'grab',
-  };
-
-  if (isDragging) {
-    return (
-      <div
-        ref={setNodeRef}
-        style={{
-          ...style,
-          width: '120px',
-          height: '120px',
-          border: '2px dashed rgba(255,255,255,0.2)',
-          borderRadius: '20px',
-          background: 'rgba(255,255,255,0.03)',
-          backdropFilter: 'blur(4px)',
-        }}
-        {...attributes}
-        {...listeners}
-      />
-    );
-  }
-
-  return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <BookmarkCard
-        {...bookmark}
-        onClick={() => onClick(bookmark.id)}
-        onContextMenu={onContextMenu}
-      />
-    </div>
-  );
-}
-
-// ─── App ──────────────────────────────────────────────────────────────────
 function App() {
+  const { setNodeRef: setDashboardRef } = useDroppable({ id: 'dashboard' });
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [gridColumns, setGridColumns] = useState<number>(7);
   const [activePage, setActivePage] = useState('dashboard');
@@ -137,31 +96,161 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [editData, setEditData] = useState<Bookmark | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedFolderId, setExpandedFolderId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; id: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const BACKGROUNDS = ['/bg1.png', '/bg2.png', '/bg3.png', '/bg4.png', '/bg5.png'];
-  const CYCLE_MS = 15000;
+  const [hoveredBookmark, setHoveredBookmark] = useState<{ id: string; title: string; url: string } | null>(null);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
-  // Initialize with the globally synchronized index
-  const [bgIndex, setBgIndex] = useState(() => Math.floor(Date.now() / CYCLE_MS) % BACKGROUNDS.length);
+  const BACKGROUNDS = [
+    '/bg1.png', 
+    '/bg2.png', 
+    'youtube:VpG0GUSz8-s',
+    '/bg3.png', 
+    '/bg4.png', 
+    '/bg5.png'
+  ];
+  const CYCLE_MS = 15000;
+  const [bgIndex, setBgIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const [videoProgress, setVideoProgress] = useState(0); // 0 to 100
+  const [videoTime, setVideoTime] = useState({ current: 0, total: 0 });
+  const [player, setPlayer] = useState<any>(null);
+  const [isSeeking, setIsSeeking] = useState(false);
+  const [isZenMode, setIsZenMode] = useState(false);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   useEffect(() => {
-    // let timeoutId: ReturnType<typeof setTimeout>;
+    // Load YouTube API
+    if (!(window as any).YT) {
+      const tag = document.createElement('script');
+      tag.src = "https://www.youtube.com/iframe_api";
+      const firstScriptTag = document.getElementsByTagName('script')[0];
+      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+    }
+    
+    // Define global callback for YT API
+    (window as any).onYouTubeIframeAPIReady = () => {
+      // API is ready
+      if (BACKGROUNDS[bgIndex].startsWith('youtube:')) {
+        initializePlayer();
+      }
+    };
+  }, []);
 
-    const scheduleNext = () => {
-      const now = Date.now();
-      const currentCalculatedIndex = Math.floor(now / CYCLE_MS) % BACKGROUNDS.length;
-      setBgIndex(currentCalculatedIndex);
+  const initializePlayer = () => {
+    const YT = (window as any).YT;
+    if (YT && YT.Player && document.getElementById('bg-video-iframe')) {
+      const p = new YT.Player('bg-video-iframe', {
+        events: {
+          onReady: () => {
+            setPlayer(p);
+          }
+        }
+      });
+    }
+  };
+
+  // Re-initialize player when background changes or API becomes available
+  useEffect(() => {
+    if ((window as any).YT && (window as any).YT.Player) {
+      initializePlayer();
+    }
+  }, [bgIndex]);
+
+  // Sync progress bar
+  useEffect(() => {
+    let interval: any;
+    if (player && player.getCurrentTime) {
+      interval = setInterval(() => {
+        if (isSeeking) return; // Don't overwrite user input
+        try {
+          const current = player.getCurrentTime();
+          const total = player.getDuration();
+          if (total > 0) {
+            setVideoProgress((current / total) * 100);
+            setVideoTime({ current, total });
+          }
+        } catch (e) {}
+      }, 500);
+    }
+    return () => clearInterval(interval);
+  }, [player, isSeeking]);
+
+  useEffect(() => {
+    const handleBgClick = (e: MouseEvent) => {
+      // Don't toggle if we clicked an interactive element
+      const target = e.target as HTMLElement;
+      const isInteractive = target.closest('button, input, a, textarea, .glass-card, [role="button"], .sortable-item');
+      
+      // Also don't toggle if context menu or modals are open
+      if (!isInteractive && !isModalOpen && !isSettingsOpen && !expandedId && !expandedFolderId) {
+        setIsZenMode(prev => !prev);
+        setContextMenu(null);
+      }
     };
 
-    scheduleNext();
-    // return () => clearTimeout(timeoutId);
-  }, []);
+    window.addEventListener('click', handleBgClick);
+    return () => window.removeEventListener('click', handleBgClick);
+  }, [isModalOpen, isSettingsOpen, expandedId, expandedFolderId]);
+
+  // Handle Fullscreen side effects
+  useEffect(() => {
+    try {
+      if (isZenMode) {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        }
+      } else {
+        if (document.fullscreenElement) {
+          document.exitFullscreen().catch(() => {});
+        }
+      }
+    } catch (e) {
+      console.warn("Fullscreen toggle failed:", e);
+    }
+  }, [isZenMode]);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    const handleGlobalScroll = (e: WheelEvent) => {
+      if (hoveredBookmark) {
+        const notesArea = document.querySelector('.notes-textarea') as HTMLTextAreaElement;
+        if (notesArea) {
+          notesArea.scrollTop += e.deltaY;
+          if (e.cancelable) e.preventDefault();
+        }
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('wheel', handleGlobalScroll, { passive: false });
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('wheel', handleGlobalScroll);
+    };
+  }, [hoveredBookmark]);
+
+  const nextBg = () => setBgIndex(prev => (prev + 1) % BACKGROUNDS.length);
+  const prevBg = () => setBgIndex(prev => (prev - 1 + BACKGROUNDS.length) % BACKGROUNDS.length);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
+
+  useEffect(() => {
+    if (isPaused) return;
+    const interval = setInterval(() => {
+      setBgIndex(prev => (prev + 1) % BACKGROUNDS.length);
+    }, CYCLE_MS);
+    return () => clearInterval(interval);
+  }, [isPaused]);
 
   useEffect(() => {
     const unsubBookmarks = onSnapshot(collection(db, 'bookmarks'), (snapshot) => {
@@ -184,10 +273,42 @@ function App() {
     return () => { unsubBookmarks(); unsubSettings(); };
   }, [isLoading]);
 
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const percent = parseFloat(e.target.value);
+    setVideoProgress(percent);
+    // Update local time for instant feedback while dragging
+    if (videoTime.total > 0) {
+      setVideoTime(prev => ({ ...prev, current: (percent / 100) * prev.total }));
+    }
+  };
+
+  const handleSeekEnd = () => {
+    setIsSeeking(false);
+    if (player) {
+      const duration = player.getDuration();
+      player.seekTo((videoProgress / 100) * duration, true);
+    }
+  };
+
   const seedDatabase = async () => {
     for (const b of INITIAL_BOOKMARKS) {
       const { id, ...data } = b;
       await setDoc(doc(db, 'bookmarks', id), data);
+    }
+    setIsLoading(false);
+  };
+
+  const resetBookmarks = async () => {
+    if (!window.confirm('Remove all current bookmarks and reset to the ones from the photo?')) return;
+    setIsLoading(true);
+    try {
+      const snapshot = await getDocs(collection(db, 'bookmarks'));
+      for (const d of snapshot.docs) {
+        await deleteDoc(doc(db, 'bookmarks', d.id));
+      }
+      await seedDatabase();
+    } catch (err) {
+      console.error('Reset failed:', err);
     }
     setIsLoading(false);
   };
@@ -216,6 +337,38 @@ function App() {
     await setDoc(doc(db, 'settings', 'dashboard'), { gridColumns: cols }, { merge: true });
   };
 
+  const customCollisionStrategy = (args: any) => {
+    if (expandedFolderId) {
+      const { pointerCoordinates } = args;
+      const intersections = closestCenter(args);
+      
+      const internalIntersections = intersections.filter((i: any) => 
+        bookmarks.some(b => b.id === i.id && b.parentId === expandedFolderId)
+      );
+
+      // Proximity Ejection: If we are far from the center of the modal, eject
+      // This makes it feel "closer" as requested
+      if (pointerCoordinates) {
+        const screenCenter = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+        const distToCenter = Math.sqrt(
+          Math.pow(pointerCoordinates.x - screenCenter.x, 2) + 
+          Math.pow(pointerCoordinates.y - screenCenter.y, 2)
+        );
+        
+        // If we are more than 400px from the screen center, eject!
+        if (distToCenter > 400) return [{ id: 'remove-from-folder' }];
+      }
+
+      if (internalIntersections.length === 0) {
+        return [{ id: 'remove-from-folder' }];
+      }
+      
+      return internalIntersections;
+    }
+    
+    return closestCenter(args);
+  };
+
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
   };
@@ -223,48 +376,90 @@ function App() {
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
-
-    if (!over) return;
-
     const draggedBookmarkId = active.id as string;
-    const overId = over.id as string;
+    const overId = over ? (over.id as string) : null;
+    const draggedBookmark = bookmarks.find(b => b.id === draggedBookmarkId);
 
-    // Dropped onto a PAGE tab → move bookmark to that page
+    // Eject from folder logic: if dropped outside or on the remove zone
+    if (!overId || overId === 'remove-from-folder' || overId === 'dashboard') {
+      if (draggedBookmark && draggedBookmark.parentId) {
+        const folderId = draggedBookmark.parentId;
+        const folder = bookmarks.find(b => b.id === folderId);
+        
+        await updateDoc(doc(db, 'bookmarks', draggedBookmarkId), { 
+          parentId: null, 
+          page: activePage,
+          order: bookmarks.filter(b => (b.page || 'dashboard') === activePage && !b.parentId).length
+        });
+
+        // Auto-dissolve: if only 1 child remains after ejection, promote it and delete folder
+        const remainingChildren = bookmarks.filter(b => b.parentId === folderId && b.id !== draggedBookmarkId);
+        if (remainingChildren.length === 1) {
+          await updateDoc(doc(db, 'bookmarks', remainingChildren[0].id), {
+            parentId: null,
+            page: folder?.page || 'dashboard',
+            order: folder?.order ?? 0,
+          });
+          await deleteDoc(doc(db, 'bookmarks', folderId));
+        }
+
+        setExpandedFolderId(null);
+      }
+      return;
+    }
+
     if (PAGE_IDS.includes(overId)) {
       const targetPage = overId;
       const bookmark = bookmarks.find(b => b.id === draggedBookmarkId);
       if (bookmark && (bookmark.page || 'dashboard') !== targetPage) {
-        // Optimistic update
-        setBookmarks(prev =>
-          prev.map(b => b.id === draggedBookmarkId ? { ...b, page: targetPage } : b)
-        );
+        setBookmarks(prev => prev.map(b => b.id === draggedBookmarkId ? { ...b, page: targetPage } : b));
         await updateDoc(doc(db, 'bookmarks', draggedBookmarkId), { page: targetPage });
-        // Switch to the target page so user sees where it went
         setActivePage(targetPage);
       }
       return;
     }
 
-    // Dropped onto another bookmark → reorder within the page
     if (draggedBookmarkId === overId) return;
 
-    const pageBookmarks = bookmarks.filter(b => (b.page || 'dashboard') === activePage);
+    const overBookmark = bookmarks.find(b => b.id === overId);
+    let isDropOnCenter = false;
+    if (overBookmark && !PAGE_IDS.includes(overId)) {
+      const activeRect = active.rect.current?.translated;
+      const overRect = over?.rect;
+      if (activeRect && overRect) {
+        const activeCenter = { x: activeRect.left + activeRect.width / 2, y: activeRect.top + activeRect.height / 2 };
+        const overCenter = { x: overRect.left + overRect.width / 2, y: overRect.top + overRect.height / 2 };
+        const distance = Math.sqrt(Math.pow(activeCenter.x - overCenter.x, 2) + Math.pow(activeCenter.y - overCenter.y, 2));
+        isDropOnCenter = distance < 45;
+      }
+    }
+
+    if (isDropOnCenter && overBookmark) {
+      if (overBookmark.type === 'folder') {
+        await updateDoc(doc(db, 'bookmarks', draggedBookmarkId), { parentId: overBookmark.id, page: 'hidden' });
+      } else if (overBookmark.parentId) {
+        await updateDoc(doc(db, 'bookmarks', draggedBookmarkId), { parentId: overBookmark.parentId, page: 'hidden' });
+      } else {
+        const folderRef = await addDoc(collection(db, 'bookmarks'), {
+          title: 'Group', url: '', type: 'folder', order: overBookmark.order ?? 0, page: activePage
+        });
+        await updateDoc(doc(db, 'bookmarks', overBookmark.id), { parentId: folderRef.id, page: 'hidden' });
+        await updateDoc(doc(db, 'bookmarks', draggedBookmarkId), { parentId: folderRef.id, page: 'hidden' });
+      }
+      return;
+    }
+
+    const pageBookmarks = bookmarks.filter(b => (b.page || 'dashboard') === activePage && !b.parentId);
     const oldIndex = pageBookmarks.findIndex(b => b.id === draggedBookmarkId);
     const newIndex = pageBookmarks.findIndex(b => b.id === overId);
-
     if (oldIndex === -1 || newIndex === -1) return;
 
     const reordered = arrayMove(pageBookmarks, oldIndex, newIndex);
-
-    // Merge back with other pages' bookmarks
-    const otherBookmarks = bookmarks.filter(b => (b.page || 'dashboard') !== activePage);
+    const otherBookmarks = bookmarks.filter(b => !reordered.find(r => r.id === b.id));
     setBookmarks([...otherBookmarks, ...reordered]);
 
-    // Persist to Firestore
     reordered.forEach(async (b, index) => {
-      if (b.order !== index) {
-        await updateDoc(doc(db, 'bookmarks', b.id), { order: index });
-      }
+      if (b.order !== index) await updateDoc(doc(db, 'bookmarks', b.id), { order: index });
     });
   };
 
@@ -276,7 +471,9 @@ function App() {
   const handleBookmarkClick = (id: string) => {
     if (activeId) return;
     const bookmark = bookmarks.find(b => b.id === id);
-    if (bookmark) window.location.href = bookmark.url;
+    if (!bookmark) return;
+    if (bookmark.type === 'folder') setExpandedFolderId(id);
+    else window.location.href = bookmark.url;
   };
 
   const handleEditRequest = (id: string) => {
@@ -284,49 +481,116 @@ function App() {
     if (bookmark) { setEditData(bookmark); setIsModalOpen(true); }
   };
 
-  // Filter bookmarks for current page
-  const pageBookmarks = bookmarks.filter(b => (b.page || 'dashboard') === activePage);
+  const rootBookmarks = bookmarks.filter(b => (b.page || 'dashboard') === activePage && !b.parentId);
+  const totalItems = rootBookmarks.length + 1; // +1 for the 'Add' button
+
+  // Balanced grid math: try to make the grid roughly square-ish based on available space
+  const calendarWidth = activePage === 'dashboard' ? 320 : 0;
+  const layoutPaddingX = 160;
+  const layoutPaddingY = 300;
+  const availW = windowWidth - calendarWidth - layoutPaddingX;
+  const availH = window.innerHeight - layoutPaddingY;
+  const containerAspect = availW / availH;
+  
+  // Calculate columns to match the screen's aspect ratio
+  let dynamicCols = Math.ceil(Math.sqrt(totalItems * containerAspect));
+  dynamicCols = Math.max(3, Math.min(12, dynamicCols));
+  const dynamicRows = Math.ceil(totalItems / dynamicCols);
+
+  const gap = 24;
+  // Calculate size to fit both width and height constraints
+  const sizeToFitW = (availW - (dynamicCols - 1) * gap) / dynamicCols;
+  const sizeToFitH = (availH - (dynamicRows - 1) * gap) / dynamicRows;
+  
+  const iconSize = Math.min(120, Math.max(48, Math.min(sizeToFitW, sizeToFitH)));
+
   const expandedBookmark = bookmarks.find(b => b.id === expandedId);
   const activeBookmark = bookmarks.find(b => b.id === activeId);
 
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCenter}
+      collisionDetection={customCollisionStrategy}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="dashboard-container" onClick={() => setContextMenu(null)}>
-        <TopBar
-          onAddClick={() => setIsModalOpen(true)}
-          onSettingsClick={() => setIsSettingsOpen(true)}
-          activePage={activePage}
-          onPageChange={setActivePage}
-          isDragging={!!activeId}
-        />
+      <div 
+        ref={setDashboardRef} 
+        className="dashboard-container" 
+        style={{ overflowX: 'hidden' }} 
+      >
+        <motion.div
+          animate={{ 
+            opacity: isZenMode ? 0 : 1,
+            y: isZenMode ? -20 : 0,
+            pointerEvents: isZenMode ? 'none' : 'auto' 
+          }}
+          transition={{ duration: 0.5 }}
+          style={{ position: 'relative', zIndex: 10 }}
+        >
+          <TopBar
+            onAddClick={() => setIsModalOpen(true)}
+            onSettingsClick={() => setIsSettingsOpen(true)}
+            activePage={activePage}
+            onPageChange={setActivePage}
+            isDragging={!!activeId}
+          />
+        </motion.div>
 
-        <AnimatePresence>
-          <motion.img
-            key={bgIndex}
-            initial={{ opacity: 0, scale: 1.05 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0 }}
+        {BACKGROUNDS.map((bg, index) => (
+          <motion.div
+            key={index}
+            initial={{ opacity: 0 }}
+            animate={{ 
+              opacity: index === bgIndex ? 1 : 0,
+              scale: index === bgIndex ? 1 : 1.05
+            }}
             transition={{ duration: 2, ease: "easeInOut" }}
-            src={BACKGROUNDS[bgIndex]}
-            className="background-image"
-            alt="background"
             style={{
               position: 'fixed',
               top: 0,
               left: 0,
               width: '100vw',
               height: '100vh',
-              objectFit: 'cover',
               zIndex: 0,
               pointerEvents: 'none',
+              overflow: 'hidden',
+              display: index === bgIndex || index === (bgIndex - 1 + BACKGROUNDS.length) % BACKGROUNDS.length ? 'block' : 'none' 
             }}
-          />
-        </AnimatePresence>
+          >
+            {bg.startsWith('youtube:') ? (
+              <iframe
+                id={index === bgIndex ? 'bg-video-iframe' : undefined}
+                src={`https://www.youtube.com/embed/${bg.split(':')[1]}?autoplay=1&mute=1&loop=1&playlist=${bg.split(':')[1]}&controls=0&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&enablejsapi=1`}
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  width: '100vw',
+                  height: '56.25vw',
+                  minHeight: '100vh',
+                  minWidth: '177.77vh',
+                  transform: 'translate(-50%, -50%)',
+                  border: 'none',
+                  pointerEvents: 'none',
+                }}
+                allow="autoplay; encrypted-media"
+                title={`background-video-${index}`}
+              />
+            ) : (
+              <img
+                src={bg}
+                className="background-image"
+                alt="background"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                }}
+              />
+            )}
+          </motion.div>
+        ))}
 
         <AnimatePresence mode="wait">
           {isLoading ? (
@@ -349,9 +613,14 @@ function App() {
             <motion.div
               key={activePage}
               initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
+              animate={{ 
+                opacity: isZenMode ? 0 : 1, 
+                scale: isZenMode ? 0.98 : 1,
+                y: 0,
+                pointerEvents: isZenMode ? 'none' : 'auto'
+              }}
               exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.25 }}
+              transition={{ duration: 0.5 }}
               style={{
                 width: '100%',
                 height: '100vh',
@@ -368,75 +637,102 @@ function App() {
                 <ErrorBoundary>
                   <WhiteboardView />
                 </ErrorBoundary>
+              ) : activePage === 'calendar' ? (
+                <CalendarView />
               ) : (
-                <>
-                  <SearchBar />
-
-                  {pageBookmarks.length === 0 && !isLoading ? (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
+                <div 
                   style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '16px',
-                    marginTop: '40px',
-                    color: 'rgba(255,255,255,0.3)',
-                  }}
-                >
-                  <div style={{ fontSize: '48px' }}>📂</div>
-                  <p style={{ fontSize: '16px', fontWeight: 300 }}>
-                    Drag bookmarks here from Dashboard
-                  </p>
-                </motion.div>
-              ) : (
-                <SortableContext items={pageBookmarks.map(b => b.id)} strategy={rectSortingStrategy}>
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: `repeat(${gridColumns}, 120px)`,
-                      gap: '24px',
-                      justifyContent: 'center',
-                      width: '100%',
-                      padding: '20px',
-                      transition: 'grid-template-columns 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
-                    }}
-                  >
-                    {pageBookmarks.map((bookmark) => (
-                      <SortableBookmarkItem
-                        key={bookmark.id}
-                        bookmark={bookmark}
-                        onContextMenu={handleContextMenu}
-                        onClick={handleBookmarkClick}
-                        isDragging={activeId === bookmark.id}
-                      />
-                    ))}
+                  display: 'flex',
+                  gap: '40px',
+                  width: '100%',
+                  maxWidth: '1600px',
+                  justifyContent: 'center',
+                  padding: '0 40px',
+                }}>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <SearchBar preview={hoveredBookmark} />
 
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => { setEditData(null); setIsModalOpen(true); }}
-                      className="glass-card"
-                      style={{
-                        width: '120px',
-                        height: '120px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'rgba(255, 255, 255, 0.4)',
-                      }}
-                    >
-                      <Plus size={32} />
-                      <span style={{ fontSize: '13px', marginTop: '8px' }}>Add</span>
-                    </motion.button>
+                    {rootBookmarks.length === 0 && !isLoading ? (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '16px',
+                          marginTop: '40px',
+                          color: 'rgba(255,255,255,0.3)',
+                        }}
+                      >
+                        <div style={{ fontSize: '48px' }}>📂</div>
+                        <p style={{ fontSize: '16px', fontWeight: 300 }}>
+                          No bookmarks here yet.
+                        </p>
+                      </motion.div>
+                    ) : (
+                      <SortableContext 
+                        items={rootBookmarks.map(b => b.id)} 
+                        strategy={rectSortingStrategy}
+                        disabled={!!expandedFolderId}
+                      >
+                        <ErrorBoundary>
+                          <div
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: `repeat(${dynamicCols}, ${iconSize}px)`,
+                              gap: `${gap}px`,
+                              justifyContent: 'center',
+                              width: '100%',
+                              padding: '20px',
+                              transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+                            }}
+                          >
+                            {rootBookmarks.map((bookmark) => (
+                              <SortableBookmarkItem
+                                key={bookmark.id}
+                                bookmark={bookmark}
+                                folderChildren={bookmarks.filter(b => b.parentId === bookmark.id)}
+                                onContextMenu={handleContextMenu}
+                                onClick={handleBookmarkClick}
+                                onMouseEnter={() => setHoveredBookmark({ id: bookmark.id, title: bookmark.title, url: bookmark.url })}
+                                onMouseLeave={() => setHoveredBookmark(null)}
+                                isDragging={activeId === bookmark.id}
+                                size={iconSize}
+                              />
+                            ))}
+
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              onClick={() => { setEditData(null); setIsModalOpen(true); }}
+                              className="glass-card"
+                              style={{
+                                width: `${iconSize}px`,
+                                height: `${iconSize}px`,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'rgba(255, 255, 255, 0.4)',
+                                borderRadius: `${20 * (iconSize / 120)}px`,
+                              }}
+                            >
+                              <Plus size={32 * (iconSize / 120)} />
+                              <span style={{ fontSize: `${13 * (iconSize / 120)}px`, marginTop: '8px' }}>Add</span>
+                            </motion.button>
+                          </div>
+                        </ErrorBoundary>
+                      </SortableContext>
+                    )}
                   </div>
-                </SortableContext>
+                  
+                  <div style={{ flexShrink: 0, marginTop: '20px' }}>
+                    <CalendarWidget hoveredBookmark={hoveredBookmark} />
+                  </div>
+                </div>
               )}
-            </>
-          )}
-        </motion.div>
+            </motion.div>
           )}
         </AnimatePresence>
 
@@ -477,49 +773,180 @@ function App() {
           />
         )}
 
+        {/* Perfectly centered background controls */}
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 0.4 }}
-          transition={{ delay: 1 }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ 
+            opacity: isZenMode ? 0 : 1, 
+            y: isZenMode ? 40 : 0,
+            pointerEvents: isZenMode ? 'none' : 'auto' 
+          }}
+          transition={{ duration: 0.5 }}
           style={{
             position: 'fixed',
             bottom: '24px',
             left: '50%',
             transform: 'translateX(-50%)',
-            fontSize: '12px',
-            letterSpacing: '1px',
-            textTransform: 'uppercase',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            padding: '8px',
+            background: 'rgba(255, 255, 255, 0.05)',
+            backdropFilter: 'blur(30px)',
+            borderRadius: '24px',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
             zIndex: 10,
           }}
         >
-          VivaldiDash • Premium Workspace
+          {/* Top Section: Main Controls */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <motion.button
+              whileHover={{ scale: 1.1, background: 'rgba(255,255,255,0.1)' }}
+              whileTap={{ scale: 0.9 }}
+              onClick={prevBg}
+              style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: '10px', borderRadius: '12px' }}
+            >
+              <ChevronLeft size={20} />
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.1, background: 'rgba(255,255,255,0.1)' }}
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setIsPaused(!isPaused)}
+              style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: '10px', borderRadius: '12px' }}
+            >
+              {isPaused ? <Play size={20} fill="white" /> : <Pause size={20} fill="white" />}
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.1, background: 'rgba(255,255,255,0.1)' }}
+              whileTap={{ scale: 0.9 }}
+              onClick={nextBg}
+              style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: '10px', borderRadius: '12px' }}
+            >
+              <ChevronRight size={20} />
+            </motion.button>
+
+            <div style={{ height: '20px', width: '1px', background: 'rgba(255,255,255,0.1)', margin: '0 4px' }} />
+
+            <motion.button
+              whileHover={{ scale: 1.1, background: 'rgba(255,255,255,0.1)' }}
+              whileTap={{ scale: 0.9 }}
+              onClick={resetBookmarks}
+              title="Reset to Photo Bookmarks"
+              style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: '10px', borderRadius: '12px' }}
+            >
+              <RefreshCcw size={18} />
+            </motion.button>
+          </div>
+
+          {/* Bottom Section 2: Seek Bar (Only for YouTube) */}
+          {BACKGROUNDS[bgIndex].startsWith('youtube:') && (
+            <div style={{ 
+              marginTop: '4px',
+              padding: '8px 12px 12px',
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
+              borderTop: '1px solid rgba(255,255,255,0.05)',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', opacity: 0.6, letterSpacing: '1px', textTransform: 'uppercase', fontWeight: 600, color: 'white' }}>
+                <span>{formatTime(videoTime.current)} / {formatTime(videoTime.total)}</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="0.1"
+                value={videoProgress}
+                onMouseDown={() => setIsSeeking(true)}
+                onChange={handleSeek}
+                onMouseUp={handleSeekEnd}
+                style={{
+                  width: '100%',
+                  height: '4px',
+                  background: `linear-gradient(to right, #7c4dff ${videoProgress}%, rgba(255,255,255,0.1) ${videoProgress}%)`,
+                  borderRadius: '2px',
+                  appearance: 'none',
+                  outline: 'none',
+                  cursor: 'pointer',
+                }}
+                className="video-seek-bar"
+              />
+            </div>
+          )}
+        </motion.div>
+
+        <style>{`
+          .video-seek-bar::-webkit-slider-thumb {
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            background: #7c4dff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(124, 77, 255, 0.5);
+            border: 2px solid white;
+          }
+          .video-seek-bar::-moz-range-thumb {
+            width: 12px;
+            height: 12px;
+            background: #7c4dff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(124, 77, 255, 0.5);
+            border: 2px solid white;
+          }
+        `}</style>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: isZenMode ? 0 : 0.3 }}
+          transition={{ duration: 0.5 }}
+          style={{
+            position: 'fixed',
+            bottom: '76px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            fontSize: '10px',
+            letterSpacing: '2px',
+            textTransform: 'uppercase',
+            color: 'white',
+            zIndex: 9,
+            pointerEvents: 'none',
+          }}
+        >
+          VivaldiDash
         </motion.div>
       </div>
 
-      {/* Premium drag overlay — rendered at DndContext level so it floats over TopBar too */}
-      <DragOverlay
-        dropAnimation={{
-          duration: 250,
-          easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
-        }}
-      >
+      <DragOverlay dropAnimation={{ duration: 250, easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)' }}>
         {activeBookmark ? (
-          <div
-            style={{
-              cursor: 'grabbing',
-              transform: 'scale(1.08) rotate(2deg)',
-              filter: 'drop-shadow(0 24px 48px rgba(0,0,0,0.7)) drop-shadow(0 0 24px rgba(124,77,255,0.5))',
-              transition: 'none',
-            }}
-          >
-            <BookmarkCard
-              {...activeBookmark}
-              onClick={() => {}}
-              onContextMenu={() => {}}
-            />
+          <div style={{ cursor: 'grabbing', transform: 'scale(1.08) rotate(2deg)', filter: 'drop-shadow(0 24px 48px rgba(0,0,0,0.7)) drop-shadow(0 0 24px rgba(124,77,255,0.5))' }}>
+            {activeBookmark.type === 'folder' ? (
+              <FolderCard id={activeBookmark.id} title={activeBookmark.title} children={bookmarks.filter(b => b.parentId === activeBookmark.id)} onContextMenu={() => {}} onClick={() => {}} />
+            ) : (
+              <BookmarkCard {...activeBookmark} onClick={() => {}} onContextMenu={() => {}} />
+            )}
           </div>
         ) : null}
       </DragOverlay>
+
+      <AnimatePresence>
+        {expandedFolderId && (
+          <FolderExpandedView
+            id={expandedFolderId}
+            title={bookmarks.find(b => b.id === expandedFolderId)?.title || 'Group'}
+            items={bookmarks.filter(b => b.parentId === expandedFolderId)}
+            onClose={() => setExpandedFolderId(null)}
+            onBookmarkClick={handleBookmarkClick}
+            onContextMenu={handleContextMenu}
+            activeId={activeId}
+          />
+        )}
+      </AnimatePresence>
     </DndContext>
   );
 }

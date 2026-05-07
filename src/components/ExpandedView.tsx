@@ -16,7 +16,20 @@ interface ExpandedViewProps {
 }
 
 const ExpandedView: React.FC<ExpandedViewProps> = ({ bookmark, onClose, onSaveNotes }) => {
-  const faviconUrl = `https://www.google.com/s2/favicons?sz=128&domain=${new URL(bookmark.url).hostname}`;
+  let faviconUrl = '';
+  let displayHostname = '';
+  if (bookmark.url) {
+    try {
+      faviconUrl = `https://www.google.com/s2/favicons?sz=128&domain=${new URL(bookmark.url).hostname}`;
+      displayHostname = new URL(bookmark.url).hostname;
+    } catch (e) {
+      faviconUrl = `https://ui-avatars.com/api/?name=${bookmark.title}&background=random`;
+      displayHostname = 'local shortcut';
+    }
+  } else {
+    faviconUrl = `https://ui-avatars.com/api/?name=${bookmark.title}&background=random`;
+    displayHostname = 'folder';
+  }
 
   return (
     <motion.div
@@ -116,7 +129,7 @@ const ExpandedView: React.FC<ExpandedViewProps> = ({ bookmark, onClose, onSaveNo
                 textDecoration: 'none',
               }}
             >
-              {new URL(bookmark.url).hostname} <ExternalLink size={14} />
+              {displayHostname} <ExternalLink size={14} />
             </a>
           </motion.div>
         </div>
