@@ -25,6 +25,8 @@ interface SortableBookmarkItemProps {
   isDragging: boolean;
   folderChildren?: Bookmark[];
   size?: number;
+  hideTitle?: boolean;
+  noBackground?: boolean;
 }
 
 export function SortableBookmarkItem({
@@ -36,6 +38,8 @@ export function SortableBookmarkItem({
   isDragging,
   folderChildren = [],
   size = 120,
+  hideTitle = false,
+  noBackground = false,
 }: SortableBookmarkItemProps) {
   if (!bookmark) return null;
 
@@ -135,6 +139,8 @@ export function SortableBookmarkItem({
           onClick={() => onClick(bookmark.id)}
           onContextMenu={onContextMenu}
           size={size}
+          hideTitle={hideTitle}
+          noBackground={noBackground}
         />
       )}
     </div>

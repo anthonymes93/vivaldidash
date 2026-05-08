@@ -156,32 +156,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ preview }) => {
         width: '600px',
         maxWidth: '90%',
         padding: '8px 24px',
-        marginBottom: '6vh',
+        marginBottom: '2vh',
         position: 'relative',
         overflow: 'hidden',
         border: '1px solid rgba(255, 255, 255, 0.1)',
       }}
     >
-      {/* Glass Shimmer Effect */}
-      <motion.div
-        animate={{
-          x: ['-100%', '200%'],
-        }}
-        transition={{
-          duration: 3,
-          repeat: Infinity,
-          ease: 'linear',
-        }}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '50%',
-          height: '100%',
-          background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent)',
-          pointerEvents: 'none',
-        }}
-      />
+      {/* Shimmer effect removed as per user request */}
 
       <AnimatePresence mode="wait">
         {preview ? (

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Play, Pause, ChevronLeft, ChevronRight, RefreshCcw } from 'lucide-react';
+import { Plus, Play, Pause, ChevronLeft, ChevronRight, RefreshCcw, Image as ImageIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   DndContext,
@@ -42,6 +42,8 @@ import CalendarView from './components/CalendarView';
 import CalendarWidget from './components/CalendarWidget';
 import FolderCard from './components/FolderCard';
 import FolderExpandedView from './components/FolderExpandedView';
+import BackgroundSelectorModal from './components/BackgroundSelectorModal';
+import Dock from './components/Dock';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './App.css';
 
@@ -94,6 +96,8 @@ function App() {
   const [activePage, setActivePage] = useState('dashboard');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isBgModalOpen, setIsBgModalOpen] = useState(false);
+  const [previewBgIndex, setPreviewBgIndex] = useState<number | null>(null);
   const [editData, setEditData] = useState<Bookmark | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedFolderId, setExpandedFolderId] = useState<string | null>(null);
@@ -183,22 +187,13 @@ function App() {
     return () => clearInterval(interval);
   }, [player, isSeeking]);
 
-  useEffect(() => {
-    const handleBgClick = (e: MouseEvent) => {
-      // Don't toggle if we clicked an interactive element
-      const target = e.target as HTMLElement;
-      const isInteractive = target.closest('button, input, a, textarea, .glass-card, [role="button"], .sortable-item');
-      
-      // Also don't toggle if context menu or modals are open
-      if (!isInteractive && !isModalOpen && !isSettingsOpen && !expandedId && !expandedFolderId) {
-        setIsZenMode(prev => !prev);
-        setContextMenu(null);
-      }
-    };
-
-    window.addEventListener('click', handleBgClick);
-    return () => window.removeEventListener('click', handleBgClick);
-  }, [isModalOpen, isSettingsOpen, expandedId, expandedFolderId]);
+  const handleBgClick = (e: React.MouseEvent) => {
+    // Only toggle if we're not in a modal or settings
+    if (!isModalOpen && !isSettingsOpen && !expandedId && !expandedFolderId) {
+      setIsZenMode(prev => !prev);
+      setContextMenu(null);
+    }
+  };
 
   // Handle Fullscreen side effects
   useEffect(() => {
@@ -379,6 +374,7 @@ function App() {
     const draggedBookmarkId = active.id as string;
     const overId = over ? (over.id as string) : null;
     const draggedBookmark = bookmarks.find(b => b.id === draggedBookmarkId);
+    const overBookmark = bookmarks.find(b => b.id === overId);
 
     // Eject from folder logic: if dropped outside or on the remove zone
     if (!overId || overId === 'remove-from-folder' || overId === 'dashboard') {
@@ -419,9 +415,46 @@ function App() {
       return;
     }
 
-    if (draggedBookmarkId === overId) return;
+    if (overId === 'dock' || (overBookmark && overBookmark.page === 'dock')) {
+      const dockBookmarks = bookmarks.filter(b => b.page === 'dock').sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      
+      if (overId === 'dock') {
+        await updateDoc(doc(db, 'bookmarks', draggedBookmarkId), { 
+          page: 'dock', 
+          parentId: null,
+          order: dockBookmarks.length 
+        });
+      } else {
+        const oldIdx = dockBookmarks.findIndex(b => b.id === draggedBookmarkId);
+        const newIdx = dockBookmarks.findIndex(b => b.id === overId);
+        
+        if (oldIdx !== -1) {
+          const reordered = arrayMove(dockBookmarks, oldIdx, newIdx);
+          reordered.forEach(async (b, idx) => {
+            await updateDoc(doc(db, 'bookmarks', b.id), { order: idx });
+          });
+        } else {
+          await updateDoc(doc(db, 'bookmarks', draggedBookmarkId), { page: 'dock', parentId: null, order: 0 });
+        }
+      }
+      return;
+    }
 
-    const overBookmark = bookmarks.find(b => b.id === overId);
+    // Move OUT of dock logic: If dragged from dock and dropped on grid/dashboard
+    if (draggedBookmark && draggedBookmark.page === 'dock') {
+      const isOverGrid = overId === 'dashboard' || (overBookmark && overBookmark.page !== 'dock');
+      if (isOverGrid) {
+        await updateDoc(doc(db, 'bookmarks', draggedBookmarkId), { 
+          page: activePage, 
+          parentId: null,
+          order: rootBookmarks.length 
+        });
+        return;
+      }
+    }
+
+    if (draggedBookmarkId === overId) return;
+ 
     let isDropOnCenter = false;
     if (overBookmark && !PAGE_IDS.includes(overId)) {
       const activeRect = active.rect.current?.translated;
@@ -520,6 +553,7 @@ function App() {
         style={{ overflowX: 'hidden' }} 
       >
         <motion.div
+          id="top-bar"
           animate={{ 
             opacity: isZenMode ? 0 : 1,
             y: isZenMode ? -20 : 0,
@@ -527,6 +561,7 @@ function App() {
           }}
           transition={{ duration: 0.5 }}
           style={{ position: 'relative', zIndex: 10 }}
+          onClick={(e) => e.stopPropagation()}
         >
           <TopBar
             onAddClick={() => setIsModalOpen(true)}
@@ -537,27 +572,41 @@ function App() {
           />
         </motion.div>
 
-        {BACKGROUNDS.map((bg, index) => (
-          <motion.div
-            key={index}
-            initial={{ opacity: 0 }}
-            animate={{ 
-              opacity: index === bgIndex ? 1 : 0,
-              scale: index === bgIndex ? 1 : 1.05
-            }}
-            transition={{ duration: 2, ease: "easeInOut" }}
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              width: '100vw',
-              height: '100vh',
-              zIndex: 0,
-              pointerEvents: 'none',
-              overflow: 'hidden',
-              display: index === bgIndex || index === (bgIndex - 1 + BACKGROUNDS.length) % BACKGROUNDS.length ? 'block' : 'none' 
-            }}
-          >
+        {/* Background Layer - Handles Zen Mode Toggling */}
+        <div 
+          onClick={handleBgClick}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            zIndex: 0,
+            cursor: 'default'
+          }}
+        >
+          {BACKGROUNDS.map((bg, index) => {
+            const isActive = previewBgIndex !== null ? index === previewBgIndex : index === bgIndex;
+            return (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0 }}
+                animate={{ 
+                  opacity: isActive ? 1 : 0,
+                  scale: isActive ? 1 : 1.05
+                }}
+                transition={{ duration: 0.8, ease: "easeInOut" }}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  pointerEvents: 'none',
+                  overflow: 'hidden',
+                  display: isActive || (previewBgIndex === null && index === (bgIndex - 1 + BACKGROUNDS.length) % BACKGROUNDS.length) ? 'block' : 'none' 
+                }}
+              >
             {bg.startsWith('youtube:') ? (
               <iframe
                 id={index === bgIndex ? 'bg-video-iframe' : undefined}
@@ -589,8 +638,10 @@ function App() {
                 }}
               />
             )}
-          </motion.div>
-        ))}
+              </motion.div>
+            );
+          })}
+        </div>
 
         <AnimatePresence mode="wait">
           {isLoading ? (
@@ -641,17 +692,28 @@ function App() {
                 <CalendarView />
               ) : (
                 <div 
+                  onClick={(e) => e.stopPropagation()}
                   style={{
-                  display: 'flex',
-                  gap: '40px',
-                  width: '100%',
-                  maxWidth: '1600px',
-                  justifyContent: 'center',
-                  padding: '0 40px',
-                }}>
+                    display: 'flex',
+                    gap: '40px',
+                    width: '100%',
+                    maxWidth: '1600px',
+                    justifyContent: 'center',
+                    padding: '0 40px',
+                  }}>
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <SearchBar preview={hoveredBookmark} />
-
+ 
+                    <Dock 
+                      items={bookmarks.filter(b => b.page === 'dock').sort((a, b) => (a.order ?? 0) - (b.order ?? 0))}
+                      onContextMenu={handleContextMenu}
+                      onBookmarkClick={handleBookmarkClick}
+                      onMouseEnter={(item) => setHoveredBookmark({ id: item.id, title: item.title, url: item.url })}
+                      onMouseLeave={() => setHoveredBookmark(null)}
+                      activeId={activeId}
+                      width={dynamicCols * iconSize + (dynamicCols - 1) * gap}
+                    />
+ 
                     {rootBookmarks.length === 0 && !isLoading ? (
                       <motion.div
                         initial={{ opacity: 0, scale: 0.95 }}
@@ -775,6 +837,7 @@ function App() {
 
         {/* Perfectly centered background controls */}
         <motion.div
+          id="bottom-pill"
           initial={{ opacity: 0, y: 20 }}
           animate={{ 
             opacity: isZenMode ? 0 : 1, 
@@ -798,46 +861,51 @@ function App() {
             boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
             zIndex: 10,
           }}
+          onClick={(e) => e.stopPropagation()}
         >
           {/* Top Section: Main Controls */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '4px' }}>
             <motion.button
-              whileHover={{ scale: 1.1, background: 'rgba(255,255,255,0.1)' }}
+              whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={prevBg}
-              style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: '10px', borderRadius: '12px' }}
+              className="control-btn"
+              style={{ color: 'white', cursor: 'pointer', padding: '10px' }}
             >
               <ChevronLeft size={20} />
             </motion.button>
-
+ 
             <motion.button
-              whileHover={{ scale: 1.1, background: 'rgba(255,255,255,0.1)' }}
+              whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={() => setIsPaused(!isPaused)}
-              style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: '10px', borderRadius: '12px' }}
+              className="control-btn"
+              style={{ color: 'white', cursor: 'pointer', padding: '10px' }}
             >
               {isPaused ? <Play size={20} fill="white" /> : <Pause size={20} fill="white" />}
             </motion.button>
-
+ 
             <motion.button
-              whileHover={{ scale: 1.1, background: 'rgba(255,255,255,0.1)' }}
+              whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={nextBg}
-              style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: '10px', borderRadius: '12px' }}
+              className="control-btn"
+              style={{ color: 'white', cursor: 'pointer', padding: '10px' }}
             >
               <ChevronRight size={20} />
             </motion.button>
-
+ 
             <div style={{ height: '20px', width: '1px', background: 'rgba(255,255,255,0.1)', margin: '0 4px' }} />
-
+ 
             <motion.button
-              whileHover={{ scale: 1.1, background: 'rgba(255,255,255,0.1)' }}
+              whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
-              onClick={resetBookmarks}
-              title="Reset to Photo Bookmarks"
-              style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: '10px', borderRadius: '12px' }}
+              onClick={() => setIsBgModalOpen(true)}
+              title="Choose Background"
+              className="control-btn"
+              style={{ color: 'white', cursor: 'pointer', padding: '10px' }}
             >
-              <RefreshCcw size={18} />
+              <ImageIcon size={20} />
             </motion.button>
           </div>
 
@@ -947,6 +1015,15 @@ function App() {
           />
         )}
       </AnimatePresence>
+
+      <BackgroundSelectorModal
+        isOpen={isBgModalOpen}
+        onClose={() => setIsBgModalOpen(false)}
+        backgrounds={BACKGROUNDS}
+        currentIndex={bgIndex}
+        onSelect={(index) => setBgIndex(index)}
+        onHover={(index) => setPreviewBgIndex(index)}
+      />
     </DndContext>
   );
 }

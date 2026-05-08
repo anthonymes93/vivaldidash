@@ -1,6 +1,7 @@
 import React from 'react';
 import { Excalidraw } from '@excalidraw/excalidraw';
-import '@excalidraw/excalidraw/index.css';
+// CSS is now handled internally by the package or is no longer required as a separate import
+// import '@excalidraw/excalidraw/index.css';
 import { useExcalidrawSync } from '../hooks/useExcalidrawSync';
 
 const WhiteboardView: React.FC = () => {

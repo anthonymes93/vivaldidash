@@ -8,9 +8,11 @@ interface BookmarkCardProps {
   onContextMenu: (e: React.MouseEvent, id: string) => void;
   onClick: () => void;
   size?: number;
+  hideTitle?: boolean;
+  noBackground?: boolean;
 }
 
-const BookmarkCard: React.FC<BookmarkCardProps> = ({ id, title, url, onContextMenu, onClick, size = 120 }) => {
+const BookmarkCard: React.FC<BookmarkCardProps> = ({ id, title, url, onContextMenu, onClick, size = 120, hideTitle = false, noBackground = false }) => {
   let faviconUrl = '';
   try {
     const fullUrl = url.startsWith('http') ? url : `https://${url}`;
@@ -27,7 +29,7 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({ id, title, url, onContextMe
       layoutId={`card-${id}`}
       transition={{ type: 'spring', damping: 25, stiffness: 150 }}
       whileHover={{ y: -5 * scale }}
-      className="glass-card bookmark-card"
+      className={noBackground ? "" : "glass-card bookmark-card"}
       style={{
         position: 'relative',
         width: `${size}px`,
@@ -36,8 +38,11 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({ id, title, url, onContextMe
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: `${16 * scale}px`,
+        padding: noBackground ? '0' : `${16 * scale}px`,
         cursor: 'pointer',
+        background: noBackground ? 'transparent' : undefined,
+        border: noBackground ? 'none' : undefined,
+        backdropFilter: noBackground ? 'none' : undefined,
       }}
       onClick={onClick}
       onContextMenu={(e) => onContextMenu(e, id)}
@@ -46,15 +51,15 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({ id, title, url, onContextMe
         layoutId={`icon-container-${id}`}
         transition={{ type: 'spring', damping: 25, stiffness: 150 }}
         style={{
-          width: `${48 * scale}px`,
-          height: `${48 * scale}px`,
-          marginBottom: `${12 * scale}px`,
+          width: noBackground ? '100%' : `${48 * scale}px`,
+          height: noBackground ? '100%' : `${48 * scale}px`,
+          marginBottom: (hideTitle || noBackground) ? 0 : `${12 * scale}px`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'rgba(255, 255, 255, 0.05)',
+          background: noBackground ? 'transparent' : 'rgba(255, 255, 255, 0.05)',
           borderRadius: `${12 * scale}px`,
-          padding: `${10 * scale}px`,
+          padding: noBackground ? '0' : `${10 * scale}px`,
         }}
       >
         <motion.img
@@ -67,21 +72,23 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({ id, title, url, onContextMe
           }}
         />
       </motion.div>
-
-      <span
-        style={{
-          fontSize: `${13 * scale}px`,
-          fontWeight: 400,
-          textAlign: 'center',
-          width: '100%',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-          color: 'rgba(255, 255, 255, 0.8)',
-        }}
-      >
-        {title}
-      </span>
+ 
+      {!hideTitle && (
+        <span
+          style={{
+            fontSize: `${13 * scale}px`,
+            fontWeight: 400,
+            textAlign: 'center',
+            width: '100%',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            color: 'rgba(255, 255, 255, 0.8)',
+          }}
+        >
+          {title}
+        </span>
+      )}
     </motion.div>
   );
 };

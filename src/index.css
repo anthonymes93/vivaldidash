@@ -159,6 +159,19 @@ button {
   box-shadow: 0 4px 15px var(--accent-glow);
 }
 
+.control-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  background: transparent;
+}
+
+.control-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
 ::-webkit-scrollbar {
   width: 8px;
 }
