@@ -1,9 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import BookmarkIcon from './BookmarkIcon';
 
 interface SearchBarProps {
-  preview?: { title: string; url: string } | null;
+  preview?: { 
+    title: string; 
+    url: string;
+    iconType?: 'favicon' | 'lucide' | 'custom';
+    lucideIcon?: string;
+    iconColor?: string;
+    customIconUrl?: string;
+  } | null;
 }
 
 const BRAND_COLORS: Record<string, string> = {
@@ -45,7 +53,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ preview }) => {
   const getFaviconUrl = (url: string) => {
     if (!url) return '';
     try {
-      // Ensure url has protocol
       const fullUrl = url.startsWith('http') ? url : `https://${url}`;
       const domain = new URL(fullUrl).hostname;
       return `https://www.google.com/s2/favicons?sz=64&domain=${domain}`;
@@ -59,6 +66,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ preview }) => {
   useEffect(() => {
     if (!preview) {
       setAccentColor('#7c4dff');
+      return;
+    }
+
+    if (preview.iconType === 'lucide' && preview.iconColor) {
+      setAccentColor(preview.iconColor);
       return;
     }
 
@@ -78,14 +90,18 @@ const SearchBar: React.FC<SearchBarProps> = ({ preview }) => {
       return;
     }
 
+    const imageSource = preview.iconType === 'custom' && preview.customIconUrl 
+      ? preview.customIconUrl 
+      : faviconUrl;
+
     // 2. Try to extract from icon
-    if (!faviconUrl) {
+    if (!imageSource) {
       setAccentColor('#7c4dff');
       return;
     }
 
     const img = new Image();
-    img.crossOrigin = "anonymous"; // Try anonymous for unavatar.io
+    img.crossOrigin = "anonymous";
     img.onload = () => {
       try {
         const canvas = document.createElement('canvas');
@@ -98,14 +114,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ preview }) => {
         
         let colors: Record<string, number> = {};
         for (let i = 0; i < data.length; i += 4) {
-          if (data[i+3] < 200) continue; // High transparency skip
+          if (data[i+3] < 200) continue;
           
-          // Quantize color to find dominant vibrant one
           const r = Math.round(data[i] / 10) * 10;
           const g = Math.round(data[i+1] / 10) * 10;
           const b = Math.round(data[i+2] / 10) * 10;
           
-          // Skip grays/blacks/whites for vibrant colors
           const max = Math.max(r, g, b);
           const min = Math.min(r, g, b);
           if (max - min < 30) continue; 
@@ -119,12 +133,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ preview }) => {
           const [r, g, b] = dominant[0].split(',').map(Number);
           setAccentColor(`#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`);
         } else {
-          // Domain-based fallback for consistency
           const hash = domain.split('').reduce((acc, char) => char.charCodeAt(0) + ((acc << 5) - acc), 0);
           setAccentColor(`hsl(${Math.abs(hash) % 360}, 70%, 70%)`);
         }
       } catch (e) {
-        // Domain-based fallback
         const hash = domain.split('').reduce((acc, char) => char.charCodeAt(0) + ((acc << 5) - acc), 0);
         setAccentColor(`hsl(${Math.abs(hash) % 360}, 70%, 70%)`);
       }
@@ -133,7 +145,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ preview }) => {
       const hash = domain.split('').reduce((acc, char) => char.charCodeAt(0) + ((acc << 5) - acc), 0);
       setAccentColor(`hsl(${Math.abs(hash) % 360}, 70%, 70%)`);
     };
-    img.src = faviconUrl;
+    img.src = imageSource;
   }, [preview, faviconUrl]);
 
   return (
@@ -162,8 +174,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ preview }) => {
         border: '1px solid rgba(255, 255, 255, 0.1)',
       }}
     >
-      {/* Shimmer effect removed as per user request */}
-
       <AnimatePresence mode="wait">
         {preview ? (
           <motion.div
@@ -171,12 +181,17 @@ const SearchBar: React.FC<SearchBarProps> = ({ preview }) => {
             initial={{ opacity: 0, scale: 0.5, rotate: -20 }}
             animate={{ opacity: 1, scale: 1, rotate: 0 }}
             exit={{ opacity: 0, scale: 0.5 }}
-            style={{ display: 'flex', alignItems: 'center' }}
+            style={{ display: 'flex', alignItems: 'center', marginRight: '8px' }}
           >
-            <img 
-              src={faviconUrl} 
-              alt="" 
-              style={{ width: '24px', height: '24px', borderRadius: '6px', marginRight: '4px' }} 
+            <BookmarkIcon 
+              title={preview.title}
+              url={preview.url}
+              iconType={preview.iconType}
+              lucideIcon={preview.lucideIcon}
+              iconColor={preview.iconColor}
+              customIconUrl={preview.customIconUrl}
+              size={24}
+              noBackground={true}
             />
           </motion.div>
         ) : (
@@ -188,8 +203,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ preview }) => {
           >
             <Search size={20} color="rgba(255, 255, 255, 0.5)" />
           </motion.div>
-        )
-        }
+        )}
       </AnimatePresence>
 
       <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center' }}>

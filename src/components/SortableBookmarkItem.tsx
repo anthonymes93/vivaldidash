@@ -14,6 +14,10 @@ interface Bookmark {
   parentId?: string | null;
   order?: number;
   page?: string;
+  iconType?: 'favicon' | 'lucide' | 'custom';
+  lucideIcon?: string;
+  iconColor?: string;
+  customIconUrl?: string;
 }
 
 interface SortableBookmarkItemProps {

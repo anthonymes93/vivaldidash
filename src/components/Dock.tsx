@@ -10,6 +10,10 @@ interface Bookmark {
   type?: 'bookmark' | 'folder';
   parentId?: string;
   page?: string;
+  iconType?: 'favicon' | 'lucide' | 'custom';
+  lucideIcon?: string;
+  iconColor?: string;
+  customIconUrl?: string;
 }
 
 interface DockProps {

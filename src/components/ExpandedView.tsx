@@ -1,12 +1,17 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { X, ExternalLink } from 'lucide-react';
+import BookmarkIcon from './BookmarkIcon';
 
 interface Bookmark {
   id: string;
   title: string;
   url: string;
   notes?: string;
+  iconType?: 'favicon' | 'lucide' | 'custom';
+  lucideIcon?: string;
+  iconColor?: string;
+  customIconUrl?: string;
 }
 
 interface ExpandedViewProps {
@@ -16,18 +21,14 @@ interface ExpandedViewProps {
 }
 
 const ExpandedView: React.FC<ExpandedViewProps> = ({ bookmark, onClose, onSaveNotes }) => {
-  let faviconUrl = '';
   let displayHostname = '';
   if (bookmark.url) {
     try {
-      faviconUrl = `https://www.google.com/s2/favicons?sz=128&domain=${new URL(bookmark.url).hostname}`;
       displayHostname = new URL(bookmark.url).hostname;
     } catch (e) {
-      faviconUrl = `https://ui-avatars.com/api/?name=${bookmark.title}&background=random`;
       displayHostname = 'local shortcut';
     }
   } else {
-    faviconUrl = `https://ui-avatars.com/api/?name=${bookmark.title}&background=random`;
     displayHostname = 'folder';
   }
 
@@ -99,11 +100,15 @@ const ExpandedView: React.FC<ExpandedViewProps> = ({ bookmark, onClose, onSaveNo
               padding: '20px',
             }}
           >
-            <motion.img
-              layoutId={`icon-${bookmark.id}`}
-              src={faviconUrl}
-              alt={bookmark.title}
-              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            <BookmarkIcon 
+              title={bookmark.title}
+              url={bookmark.url}
+              iconType={bookmark.iconType}
+              lucideIcon={bookmark.lucideIcon}
+              iconColor={bookmark.iconColor}
+              customIconUrl={bookmark.customIconUrl}
+              size={80}
+              noBackground={true}
             />
           </motion.div>
 

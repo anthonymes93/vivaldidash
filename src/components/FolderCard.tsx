@@ -1,10 +1,16 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
+import BookmarkIcon from './BookmarkIcon';
+
 interface Bookmark {
   id: string;
   title: string;
   url: string;
+  iconType?: 'favicon' | 'lucide' | 'custom';
+  lucideIcon?: string;
+  iconColor?: string;
+  customIconUrl?: string;
 }
 
 interface FolderCardProps {
@@ -60,30 +66,16 @@ const FolderCard: React.FC<FolderCardProps> = ({ id, children, onContextMenu, on
             gap: `${4 * scale}px`,
             overflow: 'hidden'
           }}>
-            {(() => {
-              let faviconUrl = '';
-              if (child.url) {
-                try {
-                  const fullUrl = child.url.startsWith('http') ? child.url : `https://${child.url}`;
-                  const domain = new URL(fullUrl).hostname;
-                  faviconUrl = `https://www.google.com/s2/favicons?sz=32&domain=${domain}`;
-                } catch (e) {
-                  faviconUrl = `https://ui-avatars.com/api/?name=${child.title}&background=random`;
-                }
-              } else {
-                faviconUrl = `https://ui-avatars.com/api/?name=${child.title}&background=random`;
-              }
-              return (
-                <img
-                  src={faviconUrl}
-                  style={{ width: `${24 * scale}px`, height: `${24 * scale}px`, objectFit: 'contain', borderRadius: `${4 * scale}px` }}
-                  alt={child.title}
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${child.title}&background=random`;
-                  }}
-                />
-              );
-            })()}
+            <BookmarkIcon 
+              title={child.title} 
+              url={child.url} 
+              iconType={child.iconType}
+              lucideIcon={child.lucideIcon}
+              iconColor={child.iconColor}
+              customIconUrl={child.customIconUrl}
+              size={24 * scale} 
+              noBackground 
+            />
             <span style={{ 
               fontSize: `${10 * scale}px`, 
               opacity: 0.6, 

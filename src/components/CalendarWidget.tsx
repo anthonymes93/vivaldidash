@@ -4,6 +4,8 @@ import { Clock, Calendar as CalendarIcon, FileText, ExternalLink } from 'lucide-
 import { collection, onSnapshot, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
+import BookmarkIcon from './BookmarkIcon';
+
 interface CalendarEvent {
   id: string;
   title: string;
@@ -16,6 +18,10 @@ interface HoveredBookmark {
   id: string;
   title: string;
   url: string;
+  iconType?: 'favicon' | 'lucide' | 'custom';
+  lucideIcon?: string;
+  iconColor?: string;
+  customIconUrl?: string;
 }
 
 interface CalendarWidgetProps {
@@ -77,13 +83,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ hoveredBookmark }) => {
   for (let i = 0; i < firstDay; i++) miniDays.push(null);
   for (let i = 1; i <= daysInMonth; i++) miniDays.push(i);
 
-  const getFaviconUrl = (url?: string) => {
-    try {
-      const urlStr = url || '';
-      const fullUrl = urlStr.startsWith('http') ? urlStr : `https://${urlStr}`;
-      return `https://www.google.com/s2/favicons?sz=64&domain=${new URL(fullUrl).hostname}`;
-    } catch { return ''; }
-  };
+
 
   return (
     <motion.div
@@ -119,15 +119,15 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ hoveredBookmark }) => {
           >
             {/* Bookmark Header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <img
-                src={getFaviconUrl(hoveredBookmark.url)}
-                alt=""
-                style={{
-                  width: '36px', height: '36px', borderRadius: '10px',
-                  background: 'rgba(255,255,255,0.05)',
-                  objectFit: 'contain', flexShrink: 0,
-                }}
-                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              <BookmarkIcon 
+                title={hoveredBookmark.title}
+                url={hoveredBookmark.url}
+                iconType={hoveredBookmark.iconType}
+                lucideIcon={hoveredBookmark.lucideIcon}
+                iconColor={hoveredBookmark.iconColor}
+                customIconUrl={hoveredBookmark.customIconUrl}
+                size={36}
+                noBackground={true}
               />
               <div style={{ flex: 1, overflow: 'hidden' }}>
                 <div style={{

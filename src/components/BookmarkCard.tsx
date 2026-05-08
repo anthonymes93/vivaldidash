@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import BookmarkIcon from './BookmarkIcon';
 
 interface BookmarkCardProps {
   id: string;
@@ -10,19 +11,16 @@ interface BookmarkCardProps {
   size?: number;
   hideTitle?: boolean;
   noBackground?: boolean;
+  iconType?: 'favicon' | 'lucide' | 'custom';
+  lucideIcon?: string;
+  iconColor?: string;
+  customIconUrl?: string;
 }
 
-const BookmarkCard: React.FC<BookmarkCardProps> = ({ id, title, url, onContextMenu, onClick, size = 120, hideTitle = false, noBackground = false }) => {
-  let faviconUrl = '';
-  try {
-    const urlStr = url || '';
-    const fullUrl = urlStr.startsWith('http') ? urlStr : `https://${urlStr}`;
-    const domain = new URL(fullUrl).hostname;
-    faviconUrl = `https://www.google.com/s2/favicons?sz=64&domain=${domain}`;
-  } catch (e) {
-    faviconUrl = `https://ui-avatars.com/api/?name=${title}&background=random`;
-  }
-
+const BookmarkCard: React.FC<BookmarkCardProps> = ({ 
+  id, title, url, onContextMenu, onClick, size = 120, hideTitle = false, noBackground = false,
+  iconType, lucideIcon, iconColor, customIconUrl 
+}) => {
   const scale = size / 120;
 
   return (
@@ -60,17 +58,17 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({ id, title, url, onContextMe
           justifyContent: 'center',
           background: noBackground ? 'transparent' : 'rgba(255, 255, 255, 0.05)',
           borderRadius: `${12 * scale}px`,
-          padding: noBackground ? '0' : `${10 * scale}px`,
         }}
       >
-        <motion.img
-          layoutId={`icon-${id}`}
-          src={faviconUrl}
-          alt={title}
-          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-          onError={(e) => {
-            (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${title}&background=random`;
-          }}
+        <BookmarkIcon 
+          title={title}
+          url={url}
+          iconType={iconType}
+          lucideIcon={lucideIcon}
+          iconColor={iconColor}
+          customIconUrl={customIconUrl}
+          size={noBackground ? size : 48 * scale}
+          noBackground={true}
         />
       </motion.div>
  

@@ -55,6 +55,10 @@ interface Bookmark {
   page?: string;
   type?: 'bookmark' | 'folder';
   parentId?: string;
+  iconType?: 'favicon' | 'lucide' | 'custom';
+  lucideIcon?: string;
+  iconColor?: string;
+  customIconUrl?: string;
 }
 
 const PAGE_IDS = ['dashboard', 'calendar'];
@@ -103,7 +107,15 @@ function App() {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; id: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [hoveredBookmark, setHoveredBookmark] = useState<{ id: string; title: string; url: string } | null>(null);
+  const [hoveredBookmark, setHoveredBookmark] = useState<{ 
+    id: string; 
+    title: string; 
+    url: string;
+    iconType?: 'favicon' | 'lucide' | 'custom';
+    lucideIcon?: string;
+    iconColor?: string;
+    customIconUrl?: string;
+  } | null>(null);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
   const BACKGROUNDS = [
@@ -309,15 +321,34 @@ function App() {
   };
   */
 
-  const addBookmark = async (title: string, url: string) => {
+  const addBookmark = async (title: string, url: string, iconProps?: any) => {
     const pageBookmarks = bookmarks.filter(b => (b.page || 'dashboard') === activePage);
     const nextOrder = pageBookmarks.length > 0
       ? Math.max(...pageBookmarks.map(b => b.order ?? 0)) + 1 : 0;
-    await addDoc(collection(db, 'bookmarks'), { title, url, order: nextOrder, page: activePage });
+    
+    const newBookmarkData = { title, url, order: nextOrder, page: activePage, ...iconProps };
+    
+    // Remove undefined fields
+    Object.keys(newBookmarkData).forEach(key => {
+      if (newBookmarkData[key] === undefined) delete newBookmarkData[key];
+    });
+
+    await addDoc(collection(db, 'bookmarks'), newBookmarkData);
   };
 
-  const editBookmark = async (id: string, title: string, url: string) => {
-    await updateDoc(doc(db, 'bookmarks', id), { title, url });
+  const editBookmark = async (id: string, title: string, url: string, iconProps?: any) => {
+    const updateData: any = { title, url, ...iconProps };
+    
+    // Convert undefined back to null to remove fields from firestore or simply delete them from the update payload
+    // Actually, Firebase updateDoc ignores undefined fields, so we need to use deleteField() if we want to remove them.
+    // For simplicity, we just won't update them if they are undefined.
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === undefined) {
+         delete updateData[key];
+      }
+    });
+
+    await updateDoc(doc(db, 'bookmarks', id), updateData);
   };
 
   const deleteBookmark = async (id: string) => {
@@ -709,7 +740,15 @@ function App() {
                       items={bookmarks.filter(b => b.page === 'dock').sort((a, b) => (a.order ?? 0) - (b.order ?? 0))}
                       onContextMenu={handleContextMenu}
                       onBookmarkClick={handleBookmarkClick}
-                      onMouseEnter={(item) => setHoveredBookmark({ id: item.id, title: item.title, url: item.url })}
+                      onMouseEnter={(item) => setHoveredBookmark({ 
+                        id: item.id, 
+                        title: item.title, 
+                        url: item.url,
+                        iconType: item.iconType,
+                        lucideIcon: item.lucideIcon,
+                        iconColor: item.iconColor,
+                        customIconUrl: item.customIconUrl
+                      })}
                       onMouseLeave={() => setHoveredBookmark(null)}
                       activeId={activeId}
                       width={dynamicCols * iconSize + (dynamicCols - 1) * gap}
@@ -758,7 +797,15 @@ function App() {
                                 folderChildren={bookmarks.filter(b => b.parentId === bookmark.id)}
                                 onContextMenu={handleContextMenu}
                                 onClick={handleBookmarkClick}
-                                onMouseEnter={() => setHoveredBookmark({ id: bookmark.id, title: bookmark.title, url: bookmark.url })}
+                                onMouseEnter={() => setHoveredBookmark({ 
+                                  id: bookmark.id, 
+                                  title: bookmark.title, 
+                                  url: bookmark.url,
+                                  iconType: bookmark.iconType,
+                                  lucideIcon: bookmark.lucideIcon,
+                                  iconColor: bookmark.iconColor,
+                                  customIconUrl: bookmark.customIconUrl
+                                })}
                                 onMouseLeave={() => setHoveredBookmark(null)}
                                 isDragging={activeId === bookmark.id}
                                 size={iconSize}
