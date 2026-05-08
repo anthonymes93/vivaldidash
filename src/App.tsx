@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Play, Pause, ChevronLeft, ChevronRight, RefreshCcw, Image as ImageIcon } from 'lucide-react';
+import { Plus, Play, Pause, ChevronLeft, ChevronRight, Image as ImageIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   DndContext,
@@ -25,7 +25,6 @@ import {
   deleteDoc,
   doc,
   setDoc,
-  getDocs,
 } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -187,7 +186,7 @@ function App() {
     return () => clearInterval(interval);
   }, [player, isSeeking]);
 
-  const handleBgClick = (e: React.MouseEvent) => {
+  const handleBgClick = () => {
     // Only toggle if we're not in a modal or settings
     if (!isModalOpen && !isSettingsOpen && !expandedId && !expandedFolderId) {
       setIsZenMode(prev => !prev);
@@ -293,6 +292,7 @@ function App() {
     setIsLoading(false);
   };
 
+  /*
   const resetBookmarks = async () => {
     if (!window.confirm('Remove all current bookmarks and reset to the ones from the photo?')) return;
     setIsLoading(true);
@@ -307,6 +307,7 @@ function App() {
     }
     setIsLoading(false);
   };
+  */
 
   const addBookmark = async (title: string, url: string) => {
     const pageBookmarks = bookmarks.filter(b => (b.page || 'dashboard') === activePage);
