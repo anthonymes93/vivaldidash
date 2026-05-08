@@ -1,6 +1,6 @@
 import React from 'react';
 import { Excalidraw } from '@excalidraw/excalidraw';
-import '@excalidraw/excalidraw/dist/dev/index.css';
+import '../../node_modules/@excalidraw/excalidraw/dist/dev/index.css';
 import { useExcalidrawSync } from '../hooks/useExcalidrawSync';
 
 const WhiteboardView: React.FC = () => {
