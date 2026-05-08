@@ -105,6 +105,7 @@ function App() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedFolderId, setExpandedFolderId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; id: string } | null>(null);
+  const [selectedBookmarkId, setSelectedBookmarkId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [hoveredBookmark, setHoveredBookmark] = useState<{ 
@@ -118,14 +119,14 @@ function App() {
   } | null>(null);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
-  const BACKGROUNDS = [
+  const [backgrounds, setBackgrounds] = useState<string[]>([
     '/bg1.png', 
     '/bg2.png', 
     'youtube:VpG0GUSz8-s',
     '/bg3.png', 
     '/bg4.png', 
     '/bg5.png'
-  ];
+  ]);
   const CYCLE_MS = 15000;
   const [bgIndex, setBgIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -153,7 +154,7 @@ function App() {
     // Define global callback for YT API
     (window as any).onYouTubeIframeAPIReady = () => {
       // API is ready
-      if (BACKGROUNDS[bgIndex].startsWith('youtube:')) {
+      if (backgrounds[bgIndex]?.startsWith('youtube:')) {
         initializePlayer();
       }
     };
@@ -243,8 +244,25 @@ function App() {
     };
   }, [hoveredBookmark]);
 
-  const nextBg = () => setBgIndex(prev => (prev + 1) % BACKGROUNDS.length);
-  const prevBg = () => setBgIndex(prev => (prev - 1 + BACKGROUNDS.length) % BACKGROUNDS.length);
+  const nextBg = () => setBgIndex(prev => (prev + 1) % backgrounds.length);
+  const prevBg = () => setBgIndex(prev => (prev - 1 + backgrounds.length) % backgrounds.length);
+
+  const deleteBackground = async (index: number) => {
+    if (backgrounds.length <= 1) return; // Prevent deleting the last background
+    const newBgs = backgrounds.filter((_, i) => i !== index);
+    setBackgrounds(newBgs);
+    if (bgIndex >= newBgs.length || bgIndex === index) {
+      setBgIndex(Math.max(0, newBgs.length - 1));
+    }
+    await setDoc(doc(db, 'settings', 'dashboard'), { backgrounds: newBgs }, { merge: true });
+  };
+
+  const addBackground = async (bg: string) => {
+    const newBgs = [...backgrounds, bg];
+    setBackgrounds(newBgs);
+    setBgIndex(newBgs.length - 1);
+    await setDoc(doc(db, 'settings', 'dashboard'), { backgrounds: newBgs }, { merge: true });
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -253,7 +271,7 @@ function App() {
   useEffect(() => {
     if (isPaused) return;
     const interval = setInterval(() => {
-      setBgIndex(prev => (prev + 1) % BACKGROUNDS.length);
+      setBgIndex(prev => (prev + 1) % backgrounds.length);
     }, CYCLE_MS);
     return () => clearInterval(interval);
   }, [isPaused]);
@@ -273,7 +291,10 @@ function App() {
     });
 
     const unsubSettings = onSnapshot(doc(db, 'settings', 'dashboard'), (d) => {
-      if (d.exists()) setGridColumns(d.data().gridColumns || 7);
+      if (d.exists()) {
+        if (d.data().gridColumns) setGridColumns(d.data().gridColumns);
+        if (d.data().backgrounds && d.data().backgrounds.length > 0) setBackgrounds(d.data().backgrounds);
+      }
     });
 
     return () => { unsubBookmarks(); unsubSettings(); };
@@ -617,7 +638,7 @@ function App() {
             cursor: 'default'
           }}
         >
-          {BACKGROUNDS.map((bg, index) => {
+          {backgrounds.map((bg, index) => {
             const isActive = previewBgIndex !== null ? index === previewBgIndex : index === bgIndex;
             return (
               <motion.div
@@ -636,7 +657,7 @@ function App() {
                   height: '100%',
                   pointerEvents: 'none',
                   overflow: 'hidden',
-                  display: isActive || (previewBgIndex === null && index === (bgIndex - 1 + BACKGROUNDS.length) % BACKGROUNDS.length) ? 'block' : 'none' 
+                  display: isActive || (previewBgIndex === null && index === (bgIndex - 1 + backgrounds.length) % backgrounds.length) ? 'block' : 'none' 
                 }}
               >
             {bg.startsWith('youtube:') ? (
@@ -876,10 +897,22 @@ function App() {
             x={contextMenu.x}
             y={contextMenu.y}
             isOpen={!!contextMenu}
+            isFolder={bookmarks.find(b => b.id === contextMenu.id)?.type === 'folder' || false}
+            hasSelection={!!selectedBookmarkId}
             onClose={() => setContextMenu(null)}
             onRemove={() => deleteBookmark(contextMenu.id)}
             onEdit={() => handleEditRequest(contextMenu.id)}
             onExpand={() => setExpandedId(contextMenu.id)}
+            onSelectIcon={() => setSelectedBookmarkId(contextMenu.id)}
+            onAddSelectedToGroup={async () => {
+              if (selectedBookmarkId) {
+                await updateDoc(doc(db, 'bookmarks', selectedBookmarkId), { 
+                  parentId: contextMenu.id, 
+                  page: 'hidden' 
+                });
+                setSelectedBookmarkId(null);
+              }
+            }}
           />
         )}
 
@@ -958,7 +991,7 @@ function App() {
           </div>
 
           {/* Bottom Section 2: Seek Bar (Only for YouTube) */}
-          {BACKGROUNDS[bgIndex].startsWith('youtube:') && (
+          {backgrounds[bgIndex]?.startsWith('youtube:') && (
             <div style={{ 
               marginTop: '4px',
               padding: '8px 12px 12px',
@@ -1067,10 +1100,12 @@ function App() {
       <BackgroundSelectorModal
         isOpen={isBgModalOpen}
         onClose={() => setIsBgModalOpen(false)}
-        backgrounds={BACKGROUNDS}
+        backgrounds={backgrounds}
         currentIndex={bgIndex}
         onSelect={(index) => setBgIndex(index)}
         onHover={(index) => setPreviewBgIndex(index)}
+        onDelete={deleteBackground}
+        onAdd={addBackground}
       />
     </DndContext>
   );

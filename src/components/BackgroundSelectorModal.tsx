@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Play } from 'lucide-react';
+import { X, Play, Trash, Upload, Youtube, Plus } from 'lucide-react';
 
 interface BackgroundSelectorModalProps {
   isOpen: boolean;
@@ -9,6 +9,8 @@ interface BackgroundSelectorModalProps {
   currentIndex: number;
   onSelect: (index: number) => void;
   onHover: (index: number | null) => void;
+  onDelete?: (index: number) => void;
+  onAdd?: (bg: string) => void;
 }
 
 const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = ({
@@ -17,9 +19,21 @@ const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = ({
   backgrounds,
   currentIndex,
   onSelect,
-  onHover
+  onHover,
+  onDelete,
+  onAdd
 }) => {
-  const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; index: number } | null>(null);
+  const [isAddingYoutube, setIsAddingYoutube] = useState(false);
+  const [youtubeUrl, setYoutubeUrl] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = () => setContextMenu(null);
+    window.addEventListener('click', handleClickOutside);
+    return () => window.removeEventListener('click', handleClickOutside);
+  }, []);
 
   const getThumbnail = (bg: string) => {
     if (bg.startsWith('youtube:')) {
@@ -31,7 +45,71 @@ const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = ({
 
   const handleClose = () => {
     onHover(null);
+    setYoutubeUrl('');
+    setIsAddingYoutube(false);
     onClose();
+  };
+
+  const handleContextMenu = (e: React.MouseEvent, index: number) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY, index });
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !onAdd) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 1920;
+        const MAX_HEIGHT = 1080;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > MAX_WIDTH || height > MAX_HEIGHT) {
+          if (width / height > MAX_WIDTH / MAX_HEIGHT) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          } else {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.8); // Compress JPEG to 80% quality
+          onAdd(dataUrl);
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleAddYoutube = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!youtubeUrl || !onAdd) return;
+    
+    // Extract video ID from various YouTube URL formats
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = youtubeUrl.match(regExp);
+    const videoId = (match && match[2].length === 11) ? match[2] : null;
+
+    if (videoId) {
+      onAdd(`youtube:${videoId}`);
+      setYoutubeUrl('');
+      setIsAddingYoutube(false);
+    } else {
+      alert("Invalid YouTube URL. Please make sure it contains a valid video ID.");
+    }
   };
 
   return (
@@ -50,13 +128,75 @@ const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = ({
               <h2 style={{ fontSize: '24px', fontWeight: 600, letterSpacing: '-0.5px' }}>
                 Choose Background
               </h2>
-              <button 
-                onClick={handleClose}
-                className="control-btn"
-                style={{ padding: '8px' }}
-              >
-                <X size={24} color="rgba(255, 255, 255, 0.5)" />
-              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {onAdd && (
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <AnimatePresence>
+                      {isAddingYoutube && (
+                        <motion.form 
+                          initial={{ opacity: 0, width: 0 }}
+                          animate={{ opacity: 1, width: '200px' }}
+                          exit={{ opacity: 0, width: 0 }}
+                          onSubmit={handleAddYoutube}
+                          style={{ display: 'flex', gap: '4px' }}
+                        >
+                          <input
+                            type="text"
+                            placeholder="Paste YouTube Link"
+                            value={youtubeUrl}
+                            onChange={(e) => setYoutubeUrl(e.target.value)}
+                            className="text-input"
+                            style={{ width: '100%', fontSize: '12px', padding: '6px 12px' }}
+                            autoFocus
+                          />
+                          <button type="submit" className="control-btn" style={{ padding: '6px' }}>
+                            <Plus size={16} color="white" />
+                          </button>
+                        </motion.form>
+                      )}
+                    </AnimatePresence>
+                    
+                    {!isAddingYoutube && (
+                      <button 
+                        onClick={() => setIsAddingYoutube(true)}
+                        className="control-btn"
+                        style={{ padding: '8px 12px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}
+                        title="Add YouTube Video"
+                      >
+                        <Youtube size={16} color="#ff0000" />
+                        <span style={{ color: 'white' }}>Link</span>
+                      </button>
+                    )}
+
+                    <button 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="control-btn"
+                      style={{ padding: '8px 12px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}
+                      title="Upload Photo"
+                    >
+                      <Upload size={16} color="white" />
+                      <span style={{ color: 'white' }}>Upload</span>
+                    </button>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      ref={fileInputRef} 
+                      onChange={handleFileUpload} 
+                      style={{ display: 'none' }} 
+                    />
+                  </div>
+                )}
+
+                <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)', margin: '0 4px' }} />
+
+                <button 
+                  onClick={handleClose}
+                  className="control-btn"
+                  style={{ padding: '8px' }}
+                >
+                  <X size={24} color="rgba(255, 255, 255, 0.5)" />
+                </button>
+              </div>
             </div>
 
             <div style={{ 
@@ -69,7 +209,7 @@ const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = ({
             }}>
               {backgrounds.map((bg, index) => (
                 <motion.div
-                  key={index}
+                  key={`${index}-${bg.substring(0, 20)}`}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onMouseEnter={() => {
@@ -84,6 +224,7 @@ const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = ({
                     onSelect(index);
                     handleClose();
                   }}
+                  onContextMenu={(e) => handleContextMenu(e, index)}
                   style={{
                     position: 'relative',
                     aspectRatio: '16/9',
@@ -107,7 +248,7 @@ const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = ({
                         height: '100%',
                         border: 'none',
                         pointerEvents: 'none',
-                        transform: 'scale(1.5)', // Zoom in slightly to hide black bars in thumbnail
+                        transform: 'scale(1.5)', 
                       }}
                       title="Video Preview"
                     />
@@ -179,6 +320,43 @@ const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = ({
                 </motion.div>
               ))}
             </div>
+
+            {/* Context Menu */}
+            {contextMenu && onDelete && (
+              <div
+                style={{
+                  position: 'fixed',
+                  top: contextMenu.y,
+                  left: contextMenu.x,
+                  background: 'rgba(20, 20, 20, 0.95)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '12px',
+                  padding: '8px',
+                  zIndex: 10000,
+                  backdropFilter: 'blur(20px)',
+                  boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  onClick={() => {
+                    onDelete(contextMenu.index);
+                    setContextMenu(null);
+                  }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    padding: '8px 16px', background: 'transparent', border: 'none',
+                    color: '#ff6b6b', cursor: 'pointer', borderRadius: '6px',
+                    width: '100%', fontSize: '14px', fontWeight: 500,
+                    transition: 'background 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 107, 107, 0.1)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  <Trash size={16} /> Delete Photo
+                </button>
+              </div>
+            )}
           </motion.div>
         </div>
       )}

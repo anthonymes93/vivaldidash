@@ -1,25 +1,33 @@
 import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trash2, Edit3, Maximize2 } from 'lucide-react';
+import { Trash2, Edit3, Maximize2, CheckSquare, FolderInput } from 'lucide-react';
 
 interface ContextMenuProps {
   x: number;
   y: number;
   isOpen: boolean;
+  isFolder: boolean;
+  hasSelection: boolean;
   onClose: () => void;
   onRemove: () => void;
   onEdit: () => void;
   onExpand: () => void;
+  onSelectIcon: () => void;
+  onAddSelectedToGroup: () => void;
 }
 
 const ContextMenu: React.FC<ContextMenuProps> = ({
   x,
   y,
   isOpen,
+  isFolder,
+  hasSelection,
   onClose,
   onRemove,
   onEdit,
   onExpand,
+  onSelectIcon,
+  onAddSelectedToGroup,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -51,7 +59,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
             top: y,
             left: x,
             zIndex: 1000,
-            minWidth: '160px',
+            minWidth: '200px',
             padding: '8px',
           }}
           className="glass"
@@ -62,8 +70,23 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
           </div>
           <div className="context-menu-item" onClick={() => { onEdit(); onClose(); }}>
             <Edit3 size={16} />
-            <span>Edit Bookmark</span>
+            <span>Edit {isFolder ? 'Group' : 'Bookmark'}</span>
           </div>
+          
+          {!isFolder && (
+            <div className="context-menu-item" onClick={() => { onSelectIcon(); onClose(); }}>
+              <CheckSquare size={16} />
+              <span>Select Icon</span>
+            </div>
+          )}
+
+          {isFolder && hasSelection && (
+            <div className="context-menu-item" onClick={() => { onAddSelectedToGroup(); onClose(); }}>
+              <FolderInput size={16} />
+              <span>Add Selected to Group</span>
+            </div>
+          )}
+
           <div className="context-menu-item danger" onClick={() => { onRemove(); onClose(); }}>
             <Trash2 size={16} />
             <span>Remove</span>
