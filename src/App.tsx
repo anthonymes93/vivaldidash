@@ -25,6 +25,8 @@ import {
   deleteDoc,
   doc,
   setDoc,
+  writeBatch,
+  deleteField,
 } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -59,6 +61,7 @@ interface Bookmark {
   lucideIcon?: string;
   iconColor?: string;
   customIconUrl?: string;
+  isDashboardWidget?: boolean;
 }
 
 const PAGE_IDS = ['dashboard', 'calendar'];
@@ -105,7 +108,7 @@ function App() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedFolderId, setExpandedFolderId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; id: string } | null>(null);
-  const [selectedBookmarkId, setSelectedBookmarkId] = useState<string | null>(null);
+  const [selectedBookmarkIds, setSelectedBookmarkIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [hoveredBookmark, setHoveredBookmark] = useState<{ 
@@ -127,7 +130,7 @@ function App() {
     '/bg4.png', 
     '/bg5.png'
   ]);
-  const CYCLE_MS = 15000;
+  const [bgRotationInterval, setBgRotationInterval] = useState<number>(15000);
   const [bgIndex, setBgIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0); // 0 to 100
@@ -272,9 +275,9 @@ function App() {
     if (isPaused) return;
     const interval = setInterval(() => {
       setBgIndex(prev => (prev + 1) % backgrounds.length);
-    }, CYCLE_MS);
+    }, bgRotationInterval);
     return () => clearInterval(interval);
-  }, [isPaused]);
+  }, [isPaused, backgrounds.length, bgRotationInterval]);
 
   useEffect(() => {
     const unsubBookmarks = onSnapshot(collection(db, 'bookmarks'), (snapshot) => {
@@ -294,6 +297,7 @@ function App() {
       if (d.exists()) {
         if (d.data().gridColumns) setGridColumns(d.data().gridColumns);
         if (d.data().backgrounds && d.data().backgrounds.length > 0) setBackgrounds(d.data().backgrounds);
+        if (d.data().bgRotationInterval) setBgRotationInterval(d.data().bgRotationInterval);
       }
     });
 
@@ -559,6 +563,7 @@ function App() {
     const bookmark = bookmarks.find(b => b.id === id);
     if (!bookmark) return;
     if (bookmark.type === 'folder') setExpandedFolderId(id);
+    else if (bookmark.isDashboardWidget) setExpandedId(id);
     else window.location.href = bookmark.url;
   };
 
@@ -818,6 +823,7 @@ function App() {
                                 folderChildren={bookmarks.filter(b => b.parentId === bookmark.id)}
                                 onContextMenu={handleContextMenu}
                                 onClick={handleBookmarkClick}
+                                isSelected={selectedBookmarkIds.includes(bookmark.id)}
                                 onMouseEnter={() => setHoveredBookmark({ 
                                   id: bookmark.id, 
                                   title: bookmark.title, 
@@ -867,54 +873,11 @@ function App() {
           )}
         </AnimatePresence>
 
-        <AddBookmarkModal
-          isOpen={isModalOpen}
-          onClose={() => { setIsModalOpen(false); setEditData(null); }}
-          onAdd={addBookmark}
-          onEdit={editBookmark}
-          editData={editData}
-        />
 
-        <SettingsModal
-          isOpen={isSettingsOpen}
-          onClose={() => setIsSettingsOpen(false)}
-          gridColumns={gridColumns}
-          onGridColumnsChange={updateGridColumns}
-        />
 
-        <AnimatePresence>
-          {expandedBookmark && (
-            <ExpandedView
-              bookmark={expandedBookmark}
-              onClose={() => setExpandedId(null)}
-              onSaveNotes={(notes) => updateNotes(expandedBookmark.id, notes)}
-            />
-          )}
-        </AnimatePresence>
 
-        {contextMenu && (
-          <ContextMenu
-            x={contextMenu.x}
-            y={contextMenu.y}
-            isOpen={!!contextMenu}
-            isFolder={bookmarks.find(b => b.id === contextMenu.id)?.type === 'folder' || false}
-            hasSelection={!!selectedBookmarkId}
-            onClose={() => setContextMenu(null)}
-            onRemove={() => deleteBookmark(contextMenu.id)}
-            onEdit={() => handleEditRequest(contextMenu.id)}
-            onExpand={() => setExpandedId(contextMenu.id)}
-            onSelectIcon={() => setSelectedBookmarkId(contextMenu.id)}
-            onAddSelectedToGroup={async () => {
-              if (selectedBookmarkId) {
-                await updateDoc(doc(db, 'bookmarks', selectedBookmarkId), { 
-                  parentId: contextMenu.id, 
-                  page: 'hidden' 
-                });
-                setSelectedBookmarkId(null);
-              }
-            }}
-          />
-        )}
+
+
 
         {/* Perfectly centered background controls */}
         <motion.div
@@ -1093,6 +1056,17 @@ function App() {
             onBookmarkClick={handleBookmarkClick}
             onContextMenu={handleContextMenu}
             activeId={activeId}
+            selectedBookmarkIds={selectedBookmarkIds}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {expandedBookmark && (
+          <ExpandedView
+            bookmark={expandedBookmark}
+            onClose={() => setExpandedId(null)}
+            onSaveNotes={(notes) => updateNotes(expandedBookmark.id, notes)}
           />
         )}
       </AnimatePresence>
@@ -1106,7 +1080,76 @@ function App() {
         onHover={(index) => setPreviewBgIndex(index)}
         onDelete={deleteBackground}
         onAdd={addBackground}
+        bgRotationInterval={bgRotationInterval}
+        onRotationIntervalChange={async (val) => {
+          setBgRotationInterval(val);
+          await setDoc(doc(db, 'settings', 'dashboard'), { bgRotationInterval: val }, { merge: true });
+        }}
       />
+
+      <AddBookmarkModal
+        isOpen={isModalOpen}
+        onClose={() => { setIsModalOpen(false); setEditData(null); }}
+        onAdd={addBookmark}
+        onEdit={editBookmark}
+        editData={editData}
+      />
+
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        gridColumns={gridColumns}
+        onGridColumnsChange={updateGridColumns}
+      />
+
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          isOpen={!!contextMenu}
+          isFolder={bookmarks.find(b => b.id === contextMenu.id)?.type === 'folder' || false}
+          hasSelection={selectedBookmarkIds.length > 0}
+          onClose={() => setContextMenu(null)}
+          onRemove={() => deleteBookmark(contextMenu.id)}
+          onEdit={() => handleEditRequest(contextMenu.id)}
+          onExpand={() => setExpandedId(contextMenu.id)}
+          onSelectIcon={() => {
+            setSelectedBookmarkIds(prev => 
+              prev.includes(contextMenu.id) 
+                ? prev.filter(id => id !== contextMenu.id) 
+                : [...prev, contextMenu.id]
+            );
+          }}
+          onAddSelectedToGroup={async () => {
+            if (selectedBookmarkIds.length > 0) {
+              const batch = writeBatch(db);
+              selectedBookmarkIds.forEach(id => {
+                batch.update(doc(db, 'bookmarks', id), { 
+                  parentId: contextMenu.id, 
+                  page: 'hidden' 
+                });
+              });
+              await batch.commit();
+              setSelectedBookmarkIds([]);
+            }
+          }}
+          onBreakApartGroup={async () => {
+            const folderId = contextMenu.id;
+            const children = bookmarks.filter(b => b.parentId === folderId);
+            const folder = bookmarks.find(b => b.id === folderId);
+            
+            const batch = writeBatch(db);
+            children.forEach(child => {
+              batch.update(doc(db, 'bookmarks', child.id), { 
+                parentId: deleteField(), 
+                page: folder?.page || 'dashboard' 
+              });
+            });
+            batch.delete(doc(db, 'bookmarks', folderId));
+            await batch.commit();
+          }}
+        />
+      )}
     </DndContext>
   );
 }

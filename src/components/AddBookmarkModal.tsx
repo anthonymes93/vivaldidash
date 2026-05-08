@@ -11,6 +11,8 @@ interface Bookmark {
   lucideIcon?: string;
   iconColor?: string;
   customIconUrl?: string;
+  isDashboardWidget?: boolean;
+  type?: 'bookmark' | 'folder';
 }
 
 interface AddBookmarkModalProps {
@@ -45,6 +47,7 @@ const AddBookmarkModal: React.FC<AddBookmarkModalProps> = ({
   const [lucideIcon, setLucideIcon] = useState('Globe');
   const [iconColor, setIconColor] = useState('#ffffff');
   const [customIconUrl, setCustomIconUrl] = useState('');
+  const [isDashboardWidget, setIsDashboardWidget] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -57,6 +60,7 @@ const AddBookmarkModal: React.FC<AddBookmarkModalProps> = ({
       setLucideIcon(editData.lucideIcon || 'Globe');
       setIconColor(editData.iconColor || '#ffffff');
       setCustomIconUrl(editData.customIconUrl || '');
+      setIsDashboardWidget(editData.isDashboardWidget || false);
     } else {
       setTitle('');
       setUrl('');
@@ -140,9 +144,10 @@ const AddBookmarkModal: React.FC<AddBookmarkModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (title && url) {
+    const isFolder = editData?.type === 'folder';
+    if (title && (url || isFolder)) {
       let formattedUrl = url;
-      if (!/^https?:\/\//i.test(url)) {
+      if (url && !/^https?:\/\//i.test(url)) {
         formattedUrl = 'https://' + url;
       }
       
@@ -151,6 +156,7 @@ const AddBookmarkModal: React.FC<AddBookmarkModalProps> = ({
         lucideIcon: iconType === 'lucide' ? lucideIcon : undefined,
         iconColor: iconType === 'lucide' ? iconColor : undefined,
         customIconUrl: iconType === 'custom' ? customIconUrl : undefined,
+        isDashboardWidget,
       };
 
       if (editData) {
@@ -208,14 +214,62 @@ const AddBookmarkModal: React.FC<AddBookmarkModalProps> = ({
                       autoFocus
                     />
                   </div>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
+                  {editData?.type !== 'folder' && (
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="URL (e.g. google.com)"
+                        value={url}
+                        onChange={handleUrlChange}
+                      />
+                    </div>
+                  )}
+                  <div 
+                    className="form-group" 
+                    style={{ 
+                      marginBottom: 0, 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '10px',
+                      padding: '8px 12px',
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      borderRadius: '12px',
+                      cursor: 'pointer',
+                      transition: 'background 0.2s'
+                    }}
+                    onClick={() => setIsDashboardWidget(!isDashboardWidget)}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+                  >
                     <input
-                      type="text"
-                      className="form-input"
-                      placeholder="URL (e.g. google.com)"
-                      value={url}
-                      onChange={handleUrlChange}
+                      type="checkbox"
+                      id="isDashboardWidget"
+                      checked={isDashboardWidget}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        setIsDashboardWidget(e.target.checked);
+                      }}
+                      style={{ 
+                        width: '18px', 
+                        height: '18px', 
+                        cursor: 'pointer',
+                        accentColor: 'var(--accent-color)'
+                      }}
                     />
+                    <label 
+                      htmlFor="isDashboardWidget" 
+                      style={{ 
+                        fontSize: '14px', 
+                        cursor: 'pointer', 
+                        userSelect: 'none',
+                        color: 'white',
+                        fontWeight: 500,
+                        flexGrow: 1
+                      }}
+                    >
+                      Turn into Bookmark Dashboard
+                    </label>
                   </div>
                 </div>
               </div>

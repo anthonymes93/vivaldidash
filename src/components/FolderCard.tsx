@@ -20,9 +20,10 @@ interface FolderCardProps {
   onContextMenu: (e: React.MouseEvent, id: string) => void;
   onClick: () => void;
   size?: number;
+  hideTitle?: boolean;
 }
 
-const FolderCard: React.FC<FolderCardProps> = ({ id, children, onContextMenu, onClick, size = 120 }) => {
+const FolderCard: React.FC<FolderCardProps> = ({ id, title, children, onContextMenu, onClick, size = 120, hideTitle = false }) => {
   const scale = size / 120;
   return (
     <motion.div
@@ -52,52 +53,79 @@ const FolderCard: React.FC<FolderCardProps> = ({ id, children, onContextMenu, on
         width: '100%',
         height: '100%',
         display: 'grid',
-        gridTemplateColumns: 'repeat(2, 1fr)',
-        gridTemplateRows: 'repeat(2, 1fr)',
-        gap: `${4 * scale}px`,
+        gridTemplateColumns: `repeat(${Math.max(2, Math.ceil(Math.sqrt(children.length)))}, 1fr)`,
+        gridTemplateRows: `repeat(${Math.max(2, Math.ceil(Math.sqrt(children.length)))}, 1fr)`,
+        gap: `${2 * scale}px`,
         padding: `${4 * scale}px`,
+        paddingBottom: hideTitle ? `${4 * scale}px` : `${16 * scale}px`,
       }}>
-        {children.slice(0, 4).map((child) => (
-          <div key={child.id} style={{ 
-            display: 'flex', 
-            flexDirection: 'column', 
-            alignItems: 'center', 
-            justifyContent: 'center',
-            gap: `${4 * scale}px`,
-            overflow: 'hidden'
-          }}>
-            <BookmarkIcon 
-              title={child.title} 
-              url={child.url} 
-              iconType={child.iconType}
-              lucideIcon={child.lucideIcon}
-              iconColor={child.iconColor}
-              customIconUrl={child.customIconUrl}
-              size={24 * scale} 
-              noBackground 
-            />
-            <span style={{ 
-              fontSize: `${10 * scale}px`, 
-              opacity: 0.6, 
-              width: '100%', 
-              textAlign: 'center',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              fontWeight: 500,
-              color: 'white'
+        {children.map((child) => {
+          const cols = Math.max(2, Math.ceil(Math.sqrt(children.length)));
+          const internalScale = scale * (2.5 / cols); // Increased factor for bigger icons
+          return (
+            <div key={child.id} style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              gap: `${2 * internalScale}px`,
+              overflow: 'hidden'
             }}>
-              {child.title}
-            </span>
-          </div>
-        ))}
-        {/* Placeholder if less than 4 */}
+              <BookmarkIcon 
+                title={child.title} 
+                url={child.url} 
+                iconType={child.iconType}
+                lucideIcon={child.lucideIcon}
+                iconColor={child.iconColor}
+                customIconUrl={child.customIconUrl}
+                size={32 * internalScale} 
+                noBackground 
+              />
+              <span style={{ 
+                fontSize: `${11 * internalScale}px`, 
+                opacity: 0.7, 
+                width: '100%', 
+                textAlign: 'center',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                fontWeight: 500,
+                color: 'white'
+              }}>
+                {child.title}
+              </span>
+            </div>
+          );
+        })}
+        {/* Placeholder if less than 4 to keep the 2x2 shape */}
         {Array.from({ length: Math.max(0, 4 - children.length) }).map((_, i) => (
           <div key={`empty-${i}`} style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ width: `${24 * scale}px`, height: `${24 * scale}px`, background: 'rgba(255,255,255,0.02)', borderRadius: `${4 * scale}px` }} />
+            <div style={{ width: `${32 * scale}px`, height: `${32 * scale}px`, background: 'rgba(255,255,255,0.02)', borderRadius: `${4 * scale}px` }} />
           </div>
         ))}
       </div>
+
+      {!hideTitle && (
+        <span
+          style={{
+            position: 'absolute',
+            bottom: `${4 * scale}px`,
+            left: 0,
+            right: 0,
+            fontSize: `${11 * scale}px`,
+            fontWeight: 500,
+            textAlign: 'center',
+            width: '100%',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            color: 'rgba(255, 255, 255, 0.8)',
+            padding: `0 ${8 * scale}px`,
+          }}
+        >
+          {title}
+        </span>
+      )}
     </motion.div>
   );
 };

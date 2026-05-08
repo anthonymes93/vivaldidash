@@ -38,7 +38,7 @@ const ExpandedView: React.FC<ExpandedViewProps> = ({ bookmark, onClose, onSaveNo
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="modal-overlay"
-      style={{ zIndex: 200 }}
+      style={{ zIndex: 10000 }}
       onClick={onClose}
     >
       <motion.div

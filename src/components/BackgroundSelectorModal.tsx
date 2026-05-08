@@ -11,6 +11,8 @@ interface BackgroundSelectorModalProps {
   onHover: (index: number | null) => void;
   onDelete?: (index: number) => void;
   onAdd?: (bg: string) => void;
+  bgRotationInterval?: number;
+  onRotationIntervalChange?: (ms: number) => void;
 }
 
 const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = ({
@@ -21,7 +23,9 @@ const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = ({
   onSelect,
   onHover,
   onDelete,
-  onAdd
+  onAdd,
+  bgRotationInterval = 15000,
+  onRotationIntervalChange
 }) => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; index: number } | null>(null);
@@ -125,9 +129,26 @@ const BackgroundSelectorModal: React.FC<BackgroundSelectorModalProps> = ({
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '24px', fontWeight: 600, letterSpacing: '-0.5px' }}>
-                Choose Background
-              </h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <h2 style={{ fontSize: '24px', fontWeight: 600, letterSpacing: '-0.5px' }}>
+                  Choose Background
+                </h2>
+                {onRotationIntervalChange && (
+                  <select 
+                    value={bgRotationInterval}
+                    onChange={(e) => onRotationIntervalChange(Number(e.target.value))}
+                    className="text-input"
+                    style={{ fontSize: '12px', padding: '4px 8px', borderRadius: '8px', cursor: 'pointer', outline: 'none' }}
+                  >
+                    <option value={5000}>5 Seconds</option>
+                    <option value={15000}>15 Seconds</option>
+                    <option value={30000}>30 Seconds</option>
+                    <option value={60000}>1 Minute</option>
+                    <option value={300000}>5 Minutes</option>
+                    <option value={1800000}>30 Minutes</option>
+                  </select>
+                )}
+              </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 {onAdd && (
                   <div style={{ display: 'flex', gap: '8px' }}>

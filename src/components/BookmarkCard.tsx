@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { LayoutDashboard } from 'lucide-react';
 import BookmarkIcon from './BookmarkIcon';
 
 interface BookmarkCardProps {
@@ -15,11 +16,12 @@ interface BookmarkCardProps {
   lucideIcon?: string;
   iconColor?: string;
   customIconUrl?: string;
+  isDashboardWidget?: boolean;
 }
 
 const BookmarkCard: React.FC<BookmarkCardProps> = ({ 
   id, title, url, onContextMenu, onClick, size = 120, hideTitle = false, noBackground = false,
-  iconType, lucideIcon, iconColor, customIconUrl 
+  iconType, lucideIcon, iconColor, customIconUrl, isDashboardWidget 
 }) => {
   const scale = size / 120;
 
@@ -46,6 +48,17 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({
       onClick={onClick}
       onContextMenu={(e) => onContextMenu(e, id)}
     >
+      {isDashboardWidget && (
+        <div style={{
+          position: 'absolute',
+          top: `${8 * scale}px`,
+          left: `${8 * scale}px`,
+          opacity: 0.4,
+          color: 'white',
+        }}>
+          <LayoutDashboard size={12 * scale} />
+        </div>
+      )}
       <motion.div
         layoutId={`icon-container-${id}`}
         transition={{ type: 'spring', damping: 25, stiffness: 150 }}

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trash2, Edit3, Maximize2, CheckSquare, FolderInput } from 'lucide-react';
+import { Trash2, Edit3, Maximize2, CheckSquare, FolderInput, Layers } from 'lucide-react';
 
 interface ContextMenuProps {
   x: number;
@@ -14,6 +14,7 @@ interface ContextMenuProps {
   onExpand: () => void;
   onSelectIcon: () => void;
   onAddSelectedToGroup: () => void;
+  onBreakApartGroup: () => void;
 }
 
 const ContextMenu: React.FC<ContextMenuProps> = ({
@@ -28,6 +29,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
   onExpand,
   onSelectIcon,
   onAddSelectedToGroup,
+  onBreakApartGroup,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -58,7 +60,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
             position: 'fixed',
             top: y,
             left: x,
-            zIndex: 1000,
+            zIndex: 2000,
             minWidth: '200px',
             padding: '8px',
           }}
@@ -84,6 +86,13 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
             <div className="context-menu-item" onClick={() => { onAddSelectedToGroup(); onClose(); }}>
               <FolderInput size={16} />
               <span>Add Selected to Group</span>
+            </div>
+          )}
+
+          {isFolder && (
+            <div className="context-menu-item" onClick={() => { onBreakApartGroup(); onClose(); }}>
+              <Layers size={16} />
+              <span>Break Apart Group</span>
             </div>
           )}
 

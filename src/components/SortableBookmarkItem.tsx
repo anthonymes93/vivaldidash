@@ -18,6 +18,7 @@ interface Bookmark {
   lucideIcon?: string;
   iconColor?: string;
   customIconUrl?: string;
+  isDashboardWidget?: boolean;
 }
 
 interface SortableBookmarkItemProps {
@@ -31,6 +32,7 @@ interface SortableBookmarkItemProps {
   size?: number;
   hideTitle?: boolean;
   noBackground?: boolean;
+  isSelected?: boolean;
 }
 
 export function SortableBookmarkItem({
@@ -44,6 +46,7 @@ export function SortableBookmarkItem({
   size = 120,
   hideTitle = false,
   noBackground = false,
+  isSelected = false,
 }: SortableBookmarkItemProps) {
   if (!bookmark) return null;
 
@@ -128,6 +131,22 @@ export function SortableBookmarkItem({
         />
       )}
 
+      {isSelected && (
+        <div style={{
+          position: 'absolute',
+          top: -4 * scale,
+          right: -4 * scale,
+          width: 14 * scale,
+          height: 14 * scale,
+          background: '#ff4444',
+          borderRadius: '50%',
+          border: '2px solid white',
+          zIndex: 100,
+          boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+          pointerEvents: 'none'
+        }} />
+      )}
+
       {bookmark.type === 'folder' ? (
         <FolderCard
           id={bookmark.id}
@@ -136,6 +155,7 @@ export function SortableBookmarkItem({
           onContextMenu={onContextMenu}
           onClick={() => onClick(bookmark.id)}
           size={size}
+          hideTitle={hideTitle}
         />
       ) : (
         <BookmarkCard
@@ -145,6 +165,7 @@ export function SortableBookmarkItem({
           size={size}
           hideTitle={hideTitle}
           noBackground={noBackground}
+          isDashboardWidget={bookmark.isDashboardWidget}
         />
       )}
     </div>

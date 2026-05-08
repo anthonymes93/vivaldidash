@@ -27,6 +27,7 @@ interface FolderExpandedViewProps {
   onBookmarkClick: (id: string) => void;
   onContextMenu: (e: React.MouseEvent, id: string) => void;
   activeId: string | null;
+  selectedBookmarkIds: string[];
 }
 
 const FolderExpandedView: React.FC<FolderExpandedViewProps> = ({
@@ -36,6 +37,7 @@ const FolderExpandedView: React.FC<FolderExpandedViewProps> = ({
   onBookmarkClick,
   onContextMenu,
   activeId,
+  selectedBookmarkIds,
 }) => {
   const { setNodeRef: setDropRef, isOver } = useDroppable({
     id: 'remove-from-folder',
@@ -126,6 +128,7 @@ const FolderExpandedView: React.FC<FolderExpandedViewProps> = ({
                 onContextMenu={onContextMenu}
                 onClick={onBookmarkClick}
                 isDragging={activeId === item.id}
+                isSelected={selectedBookmarkIds.includes(item.id)}
               />
             ))}
           </div>
