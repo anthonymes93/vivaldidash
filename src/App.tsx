@@ -42,7 +42,7 @@ import WhiteboardView from './components/WhiteboardView';
 import CalendarView from './components/CalendarView';
 import CalendarWidget from './components/CalendarWidget';
 import FolderCard from './components/FolderCard';
-import FolderExpandedView from './components/FolderExpandedView';
+
 import BackgroundSelectorModal from './components/BackgroundSelectorModal';
 import Dock from './components/Dock';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -347,16 +347,24 @@ function App() {
   */
 
   const addBookmark = async (title: string, url: string, iconProps?: any) => {
-    const pageBookmarks = bookmarks.filter(b => (b.page || 'dashboard') === activePage);
-    const nextOrder = pageBookmarks.length > 0
-      ? Math.max(...pageBookmarks.map(b => b.order ?? 0)) + 1 : 0;
+    const parentId = expandedFolderId;
+    const pageBookmarks = bookmarks.filter(b => 
+      (b.page || 'dashboard') === activePage && 
+      (parentId ? b.parentId === parentId : !b.parentId)
+    );
+    const nextOrder = pageBookmarks.length;
     
-    const newBookmarkData = { title, url, order: nextOrder, page: activePage, ...iconProps };
-    
-    // Remove undefined fields
-    Object.keys(newBookmarkData).forEach(key => {
-      if (newBookmarkData[key] === undefined) delete newBookmarkData[key];
-    });
+    const newBookmarkData: any = { 
+      title, 
+      url, 
+      order: nextOrder, 
+      page: parentId ? 'hidden' : activePage, 
+      ...iconProps 
+    };
+
+    if (parentId) {
+      newBookmarkData.parentId = parentId;
+    }
 
     await addDoc(collection(db, 'bookmarks'), newBookmarkData);
   };
@@ -364,7 +372,13 @@ function App() {
   const editBookmark = async (id: string, title: string, url: string, iconProps?: any) => {
     const updateData: any = { title, url, ...iconProps };
     
-    // Convert undefined back to null to remove fields from firestore or simply delete them from the update payload
+    // Ensure parentId is preserved or updated if needed
+    const existing = bookmarks.find(b => b.id === id);
+    if (existing?.parentId) {
+      updateData.parentId = existing.parentId;
+      updateData.page = 'hidden';
+    }
+
     // Actually, Firebase updateDoc ignores undefined fields, so we need to use deleteField() if we want to remove them.
     // For simplicity, we just won't update them if they are undefined.
     Object.keys(updateData).forEach(key => {
@@ -572,7 +586,11 @@ function App() {
     if (bookmark) { setEditData(bookmark); setIsModalOpen(true); }
   };
 
-  const rootBookmarks = bookmarks.filter(b => (b.page || 'dashboard') === activePage && !b.parentId);
+  const rootBookmarks = bookmarks.filter(b => 
+    expandedFolderId 
+      ? b.parentId === expandedFolderId 
+      : ((b.page || 'dashboard') === activePage && !b.parentId)
+  );
   const totalItems = rootBookmarks.length + 1; // +1 for the 'Add' button
 
   // Balanced grid math: try to make the grid roughly square-ish based on available space
@@ -625,8 +643,14 @@ function App() {
             onAddClick={() => setIsModalOpen(true)}
             onSettingsClick={() => setIsSettingsOpen(true)}
             activePage={activePage}
-            onPageChange={setActivePage}
+            onPageChange={(page) => {
+              setActivePage(page);
+              setExpandedFolderId(null);
+            }}
             isDragging={!!activeId}
+            expandedFolderId={expandedFolderId}
+            onBack={() => setExpandedFolderId(null)}
+            folderTitle={bookmarks.find(b => b.id === expandedFolderId)?.title}
           />
         </motion.div>
 
@@ -762,24 +786,75 @@ function App() {
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <SearchBar preview={hoveredBookmark} />
  
-                    <Dock 
-                      items={bookmarks.filter(b => b.page === 'dock').sort((a, b) => (a.order ?? 0) - (b.order ?? 0))}
-                      onContextMenu={handleContextMenu}
-                      onBookmarkClick={handleBookmarkClick}
-                      onMouseEnter={(item) => setHoveredBookmark({ 
-                        id: item.id, 
-                        title: item.title, 
-                        url: item.url,
-                        iconType: item.iconType,
-                        lucideIcon: item.lucideIcon,
-                        iconColor: item.iconColor,
-                        customIconUrl: item.customIconUrl
-                      })}
-                      onMouseLeave={() => setHoveredBookmark(null)}
-                      activeId={activeId}
-                      width={dynamicCols * iconSize + (dynamicCols - 1) * gap}
-                    />
- 
+                    {expandedFolderId ? (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '16px',
+                          marginTop: '20px',
+                          marginBottom: '20px',
+                          width: '100%',
+                          maxWidth: `${dynamicCols * iconSize + (dynamicCols - 1) * gap}px`,
+                          justifyContent: 'flex-start',
+                          padding: '0 12px',
+                        }}
+                      >
+                        <motion.button
+                          whileHover={{ scale: 1.1, background: 'rgba(255, 255, 255, 0.15)' }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={() => setExpandedFolderId(null)}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '50%',
+                            background: 'rgba(255, 255, 255, 0.08)',
+                            border: '1px solid rgba(255, 255, 255, 0.15)',
+                            color: 'white',
+                            cursor: 'pointer',
+                            backdropFilter: 'blur(10px)',
+                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                          }}
+                          title="Back to Dashboard"
+                        >
+                          <ChevronLeft size={22} strokeWidth={2.5} />
+                        </motion.button>
+                        <h1 style={{ 
+                          fontSize: '24px', 
+                          fontWeight: 600, 
+                          color: 'white', 
+                          margin: 0,
+                          letterSpacing: '-0.3px',
+                          textShadow: '0 2px 8px rgba(0,0,0,0.2)'
+                        }}>
+                          {bookmarks.find(b => b.id === expandedFolderId)?.title}
+                        </h1>
+                      </motion.div>
+                    ) : (
+                      <Dock 
+                        items={bookmarks.filter(b => b.page === 'dock').sort((a, b) => (a.order ?? 0) - (b.order ?? 0))}
+                        onContextMenu={handleContextMenu}
+                        onBookmarkClick={handleBookmarkClick}
+                        onMouseEnter={(item) => setHoveredBookmark({ 
+                          id: item.id, 
+                          title: item.title, 
+                          url: item.url,
+                          iconType: item.iconType,
+                          lucideIcon: item.lucideIcon,
+                          iconColor: item.iconColor,
+                          customIconUrl: item.customIconUrl
+                        })}
+                        onMouseLeave={() => setHoveredBookmark(null)}
+                        activeId={activeId}
+                        width={dynamicCols * iconSize + (dynamicCols - 1) * gap}
+                      />
+                    )}
+
                     {rootBookmarks.length === 0 && !isLoading ? (
                       <motion.div
                         initial={{ opacity: 0, scale: 0.95 }}
@@ -799,11 +874,10 @@ function App() {
                         </p>
                       </motion.div>
                     ) : (
-                      <SortableContext 
-                        items={rootBookmarks.map(b => b.id)} 
-                        strategy={rectSortingStrategy}
-                        disabled={!!expandedFolderId}
-                      >
+                        <SortableContext 
+                          items={rootBookmarks.map(b => b.id)} 
+                          strategy={rectSortingStrategy}
+                        >
                         <ErrorBoundary>
                           <div
                             style={{
@@ -1047,18 +1121,7 @@ function App() {
       </DragOverlay>
 
       <AnimatePresence>
-        {expandedFolderId && (
-          <FolderExpandedView
-            id={expandedFolderId}
-            title={bookmarks.find(b => b.id === expandedFolderId)?.title || 'Group'}
-            items={bookmarks.filter(b => b.parentId === expandedFolderId)}
-            onClose={() => setExpandedFolderId(null)}
-            onBookmarkClick={handleBookmarkClick}
-            onContextMenu={handleContextMenu}
-            activeId={activeId}
-            selectedBookmarkIds={selectedBookmarkIds}
-          />
-        )}
+        {/* FolderExpandedView removed in favor of drill-down navigation */}
       </AnimatePresence>
 
       <AnimatePresence>
