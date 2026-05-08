@@ -77,9 +77,10 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ hoveredBookmark }) => {
   for (let i = 0; i < firstDay; i++) miniDays.push(null);
   for (let i = 1; i <= daysInMonth; i++) miniDays.push(i);
 
-  const getFaviconUrl = (url: string) => {
+  const getFaviconUrl = (url?: string) => {
     try {
-      const fullUrl = url.startsWith('http') ? url : `https://${url}`;
+      const urlStr = url || '';
+      const fullUrl = urlStr.startsWith('http') ? urlStr : `https://${urlStr}`;
       return `https://www.google.com/s2/favicons?sz=64&domain=${new URL(fullUrl).hostname}`;
     } catch { return ''; }
   };
@@ -144,7 +145,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ hoveredBookmark }) => {
                 </div>
               </div>
               <a
-                href={hoveredBookmark.url.startsWith('http') ? hoveredBookmark.url : `https://${hoveredBookmark.url}`}
+                href={(hoveredBookmark.url || '').startsWith('http') ? hoveredBookmark.url : `https://${hoveredBookmark.url || ''}`}
                 target="_blank"
                 rel="noreferrer"
                 style={{ color: 'rgba(255,255,255,0.3)', flexShrink: 0 }}

@@ -15,7 +15,8 @@ interface BookmarkCardProps {
 const BookmarkCard: React.FC<BookmarkCardProps> = ({ id, title, url, onContextMenu, onClick, size = 120, hideTitle = false, noBackground = false }) => {
   let faviconUrl = '';
   try {
-    const fullUrl = url.startsWith('http') ? url : `https://${url}`;
+    const urlStr = url || '';
+    const fullUrl = urlStr.startsWith('http') ? urlStr : `https://${urlStr}`;
     const domain = new URL(fullUrl).hostname;
     faviconUrl = `https://www.google.com/s2/favicons?sz=64&domain=${domain}`;
   } catch (e) {

@@ -1,7 +1,6 @@
 import React from 'react';
 import { Excalidraw } from '@excalidraw/excalidraw';
-// CSS is now handled internally by the package or is no longer required as a separate import
-// import '@excalidraw/excalidraw/index.css';
+import '@excalidraw/excalidraw/dist/dev/index.css';
 import { useExcalidrawSync } from '../hooks/useExcalidrawSync';
 
 const WhiteboardView: React.FC = () => {
@@ -10,8 +9,8 @@ const WhiteboardView: React.FC = () => {
   return (
     <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, zIndex: 5 }}>
       {isReady ? (
-        <Excalidraw 
-          theme="dark" 
+        <Excalidraw
+          theme="dark"
           zenModeEnabled={false}
           viewModeEnabled={false}
           initialData={{ elements: initialElements }}
