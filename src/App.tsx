@@ -739,7 +739,7 @@ function App() {
             pointerEvents: isZenMode ? 'none' : 'auto' 
           }}
           transition={{ duration: 0.5 }}
-          style={{ position: 'relative', zIndex: 10 }}
+          style={{ position: 'relative', zIndex: 10, width: '100%', left: 0, top: 0 }}
           onClick={(e) => e.stopPropagation()}
         >
           <TopBar
