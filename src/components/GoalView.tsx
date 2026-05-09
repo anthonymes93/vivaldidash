@@ -4,10 +4,17 @@ import { Target, CheckCircle2, Plus, Trash2 } from 'lucide-react';
 import { collection, onSnapshot, query, orderBy, addDoc, deleteDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 
+interface GoalPoint {
+  text: string;
+  subPoints?: string[];
+}
+
 interface MainGoal {
   id: string;
   text: string;
   order: number;
+  pros?: GoalPoint[];
+  cons?: GoalPoint[];
 }
 
 const GoalView: React.FC = () => {
@@ -16,6 +23,8 @@ const GoalView: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [editingPoint, setEditingPoint] = useState<{ type: 'pro' | 'con', index: number, subIndex?: number } | null>(null);
+  const [pointValue, setPointValue] = useState('');
 
   useEffect(() => {
     const q = query(collection(db, 'main_goals'), orderBy('order', 'asc'));
@@ -26,7 +35,6 @@ const GoalView: React.FC = () => {
       if (goalsData.length > 0 && !activeGoalId) {
         setActiveGoalId(goalsData[0].id);
       } else if (goalsData.length === 0 && !isLoading) {
-        // Create initial goal if none exist
         handleNewGoal();
       }
       setIsLoading(false);
@@ -46,7 +54,9 @@ const GoalView: React.FC = () => {
     const newGoal = {
       text: '',
       order: goals.length > 0 ? Math.max(...goals.map(g => g.order)) + 1 : 0,
-      createdAt: serverTimestamp()
+      createdAt: serverTimestamp(),
+      pros: [],
+      cons: []
     };
     const docRef = await addDoc(collection(db, 'main_goals'), newGoal);
     setActiveGoalId(docRef.id);
@@ -60,7 +70,72 @@ const GoalView: React.FC = () => {
     }
   };
 
-  const handleDelete = async (e: React.MouseEvent, id: string) => {
+  const handleAddPoint = async (type: 'pro' | 'con') => {
+    if (!activeGoalId || !activeGoal) return;
+    const currentPoints = type === 'pro' ? (activeGoal.pros || []) : (activeGoal.cons || []);
+    const updatedPoints = [...currentPoints, { text: '', subPoints: [] }];
+    await updateDoc(doc(db, 'main_goals', activeGoalId), { [type === 'pro' ? 'pros' : 'cons']: updatedPoints });
+    setEditingPoint({ type, index: updatedPoints.length - 1 });
+    setPointValue('');
+  };
+
+  const handleAddSubPoint = async (e: React.MouseEvent, type: 'pro' | 'con', index: number) => {
+    e.stopPropagation();
+    if (!activeGoalId || !activeGoal) return;
+    const currentPoints = type === 'pro' ? [...(activeGoal.pros || [])] : [...(activeGoal.cons || [])];
+    const point = currentPoints[index];
+    const updatedSubPoints = [...(point.subPoints || []), ''];
+    currentPoints[index] = { ...point, subPoints: updatedSubPoints };
+    
+    await updateDoc(doc(db, 'main_goals', activeGoalId), { [type === 'pro' ? 'pros' : 'cons']: currentPoints });
+    setEditingPoint({ type, index, subIndex: updatedSubPoints.length - 1 });
+    setPointValue('');
+  };
+
+  const handleSavePoint = async () => {
+    if (!activeGoalId || !activeGoal || !editingPoint) return;
+    const { type, index, subIndex } = editingPoint;
+    const currentPoints = type === 'pro' ? [...(activeGoal.pros || [])] : [...(activeGoal.cons || [])];
+    
+    if (subIndex !== undefined) {
+      const point = currentPoints[index];
+      const subs = [...(point.subPoints || [])];
+      if (pointValue.trim()) {
+        subs[subIndex] = pointValue;
+      } else {
+        subs.splice(subIndex, 1);
+      }
+      currentPoints[index] = { ...point, subPoints: subs };
+    } else {
+      if (pointValue.trim()) {
+        currentPoints[index].text = pointValue;
+      } else if (!(currentPoints[index].subPoints?.length)) {
+        currentPoints.splice(index, 1);
+      }
+    }
+    
+    await updateDoc(doc(db, 'main_goals', activeGoalId), { [type === 'pro' ? 'pros' : 'cons']: currentPoints });
+    setEditingPoint(null);
+  };
+
+  const handleDeletePoint = async (e: React.MouseEvent, type: 'pro' | 'con', index: number, subIndex?: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!activeGoalId || !activeGoal) return;
+    const currentPoints = type === 'pro' ? [...(activeGoal.pros || [])] : [...(activeGoal.cons || [])];
+    
+    if (subIndex !== undefined) {
+      const subs = [...(currentPoints[index].subPoints || [])];
+      subs.splice(subIndex, 1);
+      currentPoints[index] = { ...currentPoints[index], subPoints: subs };
+    } else {
+      currentPoints.splice(index, 1);
+    }
+    
+    await updateDoc(doc(db, 'main_goals', activeGoalId), { [type === 'pro' ? 'pros' : 'cons']: currentPoints });
+  };
+
+  const handleDeleteGoal = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (window.confirm('Are you sure you want to delete this goal?')) {
       await deleteDoc(doc(db, 'main_goals', id));
@@ -75,17 +150,277 @@ const GoalView: React.FC = () => {
   return (
     <div style={{
       width: '100%',
-      height: 'calc(100vh - 180px)',
+      height: 'calc(100vh - 64px)',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
       padding: '40px',
-      position: 'relative'
+      position: 'relative',
+      overflow: 'hidden'
     }}>
       <AnimatePresence mode="wait">
         {activeGoal && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+            {/* Pros Column (Right) */}
+            <div 
+              className="no-scrollbar"
+              style={{
+                position: 'absolute',
+                right: '-420px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                height: '70vh',
+                width: '320px',
+                overflowY: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '20px',
+                alignItems: 'flex-start',
+                padding: '40px 20px',
+                maskImage: 'linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)',
+                WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)',
+              }}
+            >
+              <style>{`
+                .no-scrollbar::-webkit-scrollbar { display: none; }
+                .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+              `}</style>
+              <AnimatePresence>
+                {(activeGoal.pros || []).map((pro, idx) => (
+                  <motion.div
+                    key={`pro-${idx}`}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    style={{ width: '100%' }}
+                  >
+                    <div 
+                      onClick={() => {
+                        setEditingPoint({ type: 'pro', index: idx });
+                        setPointValue(pro.text);
+                      }}
+                      onContextMenu={(e) => handleDeletePoint(e, 'pro', idx)}
+                      style={{
+                        padding: '12px 20px',
+                        background: 'rgba(76, 175, 80, 0.05)',
+                        border: '1px solid rgba(76, 175, 80, 0.2)',
+                        borderRadius: '20px',
+                        color: '#a5d6a7',
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                        backdropFilter: 'blur(10px)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '12px'
+                      }}
+                    >
+                      <div style={{ flex: 1 }}>
+                        {editingPoint?.type === 'pro' && editingPoint.index === idx && editingPoint.subIndex === undefined ? (
+                          <input
+                            autoFocus
+                            value={pointValue}
+                            onChange={(e) => setPointValue(e.target.value)}
+                            onBlur={handleSavePoint}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSavePoint()}
+                            style={{ background: 'transparent', border: 'none', color: 'white', outline: 'none', width: '100%' }}
+                          />
+                        ) : pro.text || 'New Pro...'}
+                      </div>
+                      <motion.button
+                        whileHover={{ scale: 1.2, rotate: 90 }}
+                        onClick={(e) => handleAddSubPoint(e, 'pro', idx)}
+                        style={{
+                          width: '20px',
+                          height: '20px',
+                          borderRadius: '50%',
+                          background: 'rgba(76, 175, 80, 0.2)',
+                          border: 'none',
+                          color: 'white',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <Plus size={12} />
+                      </motion.button>
+                    </div>
+
+                    {/* Sub-points */}
+                    <div style={{ marginLeft: '24px', marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {(pro.subPoints || []).map((sub, sIdx) => {
+                        const subText = typeof sub === 'string' ? sub : (sub as any).text || '';
+                        return (
+                          <motion.div
+                            key={`pro-${idx}-sub-${sIdx}`}
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.8 }}
+                            onContextMenu={(e) => handleDeletePoint(e, 'pro', idx, sIdx)}
+                            onClick={() => {
+                              setEditingPoint({ type: 'pro', index: idx, subIndex: sIdx });
+                              setPointValue(subText);
+                            }}
+                            style={{
+                              padding: '6px 12px',
+                              background: 'rgba(76, 175, 80, 0.03)',
+                              border: '1px solid rgba(76, 175, 80, 0.1)',
+                              borderRadius: '12px',
+                              color: 'rgba(255,255,255,0.6)',
+                              fontSize: '12px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {editingPoint?.type === 'pro' && editingPoint.index === idx && editingPoint.subIndex === sIdx ? (
+                              <input
+                                autoFocus
+                                value={pointValue}
+                                onChange={(e) => setPointValue(e.target.value)}
+                                onBlur={handleSavePoint}
+                                onKeyDown={(e) => e.key === 'Enter' && handleSavePoint()}
+                                style={{ background: 'transparent', border: 'none', color: 'white', outline: 'none', width: '100%' }}
+                              />
+                            ) : subText || '...'}
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+
+            {/* Cons Column (Left) */}
+            <div 
+              className="no-scrollbar"
+              style={{
+                position: 'absolute',
+                left: '-420px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                height: '70vh',
+                width: '320px',
+                overflowY: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '20px',
+                alignItems: 'flex-end',
+                padding: '40px 20px',
+                maskImage: 'linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)',
+                WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)',
+              }}
+            >
+              <AnimatePresence>
+                {(activeGoal.cons || []).map((con, idx) => (
+                  <motion.div
+                    key={`con-${idx}`}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    style={{ width: '100%' }}
+                  >
+                    <div 
+                      onClick={() => {
+                        setEditingPoint({ type: 'con', index: idx });
+                        setPointValue(con.text);
+                      }}
+                      onContextMenu={(e) => handleDeletePoint(e, 'con', idx)}
+                      style={{
+                        padding: '12px 20px',
+                        background: 'rgba(255, 82, 82, 0.05)',
+                        border: '1px solid rgba(255, 82, 82, 0.2)',
+                        borderRadius: '20px',
+                        color: '#ef9a9a',
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                        backdropFilter: 'blur(10px)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '12px',
+                        textAlign: 'right',
+                        flexDirection: 'row-reverse'
+                      }}
+                    >
+                      <div style={{ flex: 1 }}>
+                        {editingPoint?.type === 'con' && editingPoint.index === idx && editingPoint.subIndex === undefined ? (
+                          <input
+                            autoFocus
+                            value={pointValue}
+                            onChange={(e) => setPointValue(e.target.value)}
+                            onBlur={handleSavePoint}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSavePoint()}
+                            style={{ background: 'transparent', border: 'none', color: 'white', outline: 'none', width: '100%', textAlign: 'right' }}
+                          />
+                        ) : con.text || 'New Con...'}
+                      </div>
+                      <motion.button
+                        whileHover={{ scale: 1.2, rotate: -90 }}
+                        onClick={(e) => handleAddSubPoint(e, 'con', idx)}
+                        style={{
+                          width: '20px',
+                          height: '20px',
+                          borderRadius: '50%',
+                          background: 'rgba(255, 82, 82, 0.2)',
+                          border: 'none',
+                          color: 'white',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <Plus size={12} />
+                      </motion.button>
+                    </div>
+
+                    {/* Sub-points */}
+                    <div style={{ marginRight: '24px', marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+                      {(con.subPoints || []).map((sub, sIdx) => {
+                        const subText = typeof sub === 'string' ? sub : (sub as any).text || '';
+                        return (
+                          <motion.div
+                            key={`con-${idx}-sub-${sIdx}`}
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.8 }}
+                            onContextMenu={(e) => handleDeletePoint(e, 'con', idx, sIdx)}
+                            onClick={() => {
+                              setEditingPoint({ type: 'con', index: idx, subIndex: sIdx });
+                              setPointValue(subText);
+                            }}
+                            style={{
+                              padding: '6px 12px',
+                              background: 'rgba(255, 82, 82, 0.03)',
+                              border: '1px solid rgba(255, 82, 82, 0.1)',
+                              borderRadius: '12px',
+                              color: 'rgba(255,255,255,0.6)',
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              textAlign: 'right'
+                            }}
+                          >
+                            {editingPoint?.type === 'con' && editingPoint.index === idx && editingPoint.subIndex === sIdx ? (
+                              <input
+                                autoFocus
+                                value={pointValue}
+                                onChange={(e) => setPointValue(e.target.value)}
+                                onBlur={handleSavePoint}
+                                onKeyDown={(e) => e.key === 'Enter' && handleSavePoint()}
+                                style={{ background: 'transparent', border: 'none', color: 'white', outline: 'none', width: '100%', textAlign: 'right' }}
+                              />
+                            ) : subText || '...'}
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+
             {!isEditing ? (
               <motion.div
                 key={activeGoal.id + "-display"}
@@ -95,8 +430,8 @@ const GoalView: React.FC = () => {
                 whileHover={{ scale: 1.02 }}
                 onClick={() => setIsEditing(true)}
                 style={{
-                  width: '550px',
-                  height: '550px',
+                  width: 'min(500px, 70vh)',
+                  height: 'min(500px, 70vh)',
                   borderRadius: '50%',
                   background: 'rgba(255, 255, 255, 0.03)',
                   backdropFilter: 'blur(40px)',
@@ -107,7 +442,7 @@ const GoalView: React.FC = () => {
                   justifyContent: 'center',
                   cursor: 'pointer',
                   textAlign: 'center',
-                  padding: '60px',
+                  padding: '40px',
                   boxShadow: '0 40px 100px rgba(0,0,0,0.3)',
                   position: 'relative',
                   overflow: 'visible'
@@ -117,14 +452,14 @@ const GoalView: React.FC = () => {
                 <motion.button
                   whileHover={{ scale: 1.2, x: -5 }}
                   whileTap={{ scale: 0.9 }}
-                  onClick={(e) => { e.stopPropagation(); handleNewGoal(); }}
+                  onClick={(e) => { e.stopPropagation(); handleAddPoint('con'); }}
                   style={{
                     position: 'absolute',
-                    left: '-80px',
+                    left: 'min(-60px, -10%)',
                     top: '50%',
                     transform: 'translateY(-50%)',
-                    width: '60px',
-                    height: '60px',
+                    width: '50px',
+                    height: '50px',
                     borderRadius: '50%',
                     background: 'rgba(255, 82, 82, 0.1)',
                     border: '1px solid rgba(255, 82, 82, 0.3)',
@@ -137,20 +472,20 @@ const GoalView: React.FC = () => {
                     boxShadow: '0 0 20px rgba(255, 82, 82, 0.2)'
                   }}
                 >
-                  <Plus size={32} strokeWidth={3} />
+                  <Plus size={28} strokeWidth={3} />
                 </motion.button>
 
                 <motion.button
                   whileHover={{ scale: 1.2, x: 5 }}
                   whileTap={{ scale: 0.9 }}
-                  onClick={(e) => { e.stopPropagation(); handleNewGoal(); }}
+                  onClick={(e) => { e.stopPropagation(); handleAddPoint('pro'); }}
                   style={{
                     position: 'absolute',
-                    right: '-80px',
+                    right: 'min(-60px, -10%)',
                     top: '50%',
                     transform: 'translateY(-50%)',
-                    width: '60px',
-                    height: '60px',
+                    width: '50px',
+                    height: '50px',
                     borderRadius: '50%',
                     background: 'rgba(76, 175, 80, 0.1)',
                     border: '1px solid rgba(76, 175, 80, 0.3)',
@@ -163,7 +498,7 @@ const GoalView: React.FC = () => {
                     boxShadow: '0 0 20px rgba(76, 175, 80, 0.2)'
                   }}
                 >
-                  <Plus size={32} strokeWidth={3} />
+                  <Plus size={28} strokeWidth={3} />
                 </motion.button>
 
                 {/* Ambient Background Glow */}
@@ -177,21 +512,21 @@ const GoalView: React.FC = () => {
                   pointerEvents: 'none'
                 }} />
 
-                <Target size={48} color="#7c4dff" style={{ marginBottom: '24px', opacity: 0.8 }} />
+                <Target size={40} color="#7c4dff" style={{ marginBottom: '20px', opacity: 0.8 }} />
                 
                 <h2 style={{ 
-                  fontSize: '11px', 
+                  fontSize: '10px', 
                   fontWeight: 800, 
                   color: 'rgba(255,255,255,0.3)', 
                   textTransform: 'uppercase', 
                   letterSpacing: '4px',
-                  marginBottom: '16px'
+                  marginBottom: '12px'
                 }}>
                   Target #{goals.findIndex(g => g.id === activeGoal.id) + 1}
                 </h2>
 
                 <p style={{ 
-                  fontSize: '32px', 
+                  fontSize: 'min(28px, 4vh)', 
                   fontWeight: 600, 
                   color: activeGoal.text ? 'white' : 'rgba(255,255,255,0.2)',
                   lineHeight: '1.4',
@@ -206,8 +541,8 @@ const GoalView: React.FC = () => {
                   initial={{ opacity: 0 }}
                   whileHover={{ opacity: 1 }}
                   style={{ 
-                    marginTop: '32px',
-                    fontSize: '13px',
+                    marginTop: '24px',
+                    fontSize: '12px',
                     color: 'rgba(255,255,255,0.4)',
                     display: 'flex',
                     alignItems: 'center',
@@ -224,8 +559,8 @@ const GoalView: React.FC = () => {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
                 style={{
-                  width: '550px',
-                  height: '550px',
+                  width: 'min(500px, 70vh)',
+                  height: 'min(500px, 70vh)',
                   borderRadius: '50%',
                   background: 'rgba(255, 255, 255, 0.08)',
                   backdropFilter: 'blur(60px)',
@@ -234,7 +569,7 @@ const GoalView: React.FC = () => {
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  padding: '60px',
+                  padding: '40px',
                   boxShadow: '0 0 100px rgba(124, 77, 255, 0.2)',
                 }}
               >
@@ -248,7 +583,7 @@ const GoalView: React.FC = () => {
                     background: 'transparent',
                     border: 'none',
                     color: 'white',
-                    fontSize: '32px',
+                    fontSize: 'min(28px, 4vh)',
                     fontWeight: 600,
                     textAlign: 'center',
                     resize: 'none',
@@ -268,7 +603,7 @@ const GoalView: React.FC = () => {
                 />
                 
                 <div style={{ 
-                  marginTop: '40px', 
+                  marginTop: '32px', 
                   display: 'flex', 
                   gap: '16px',
                   alignItems: 'center' 
@@ -278,12 +613,12 @@ const GoalView: React.FC = () => {
                     whileTap={{ scale: 0.95 }}
                     onClick={() => { setIsEditing(false); setInputValue(activeGoal.text); }}
                     style={{
-                      padding: '12px 24px',
+                      padding: '10px 20px',
                       borderRadius: '12px',
                       background: 'rgba(255,255,255,0.05)',
                       border: '1px solid rgba(255,255,255,0.1)',
                       color: 'white',
-                      fontSize: '14px',
+                      fontSize: '13px',
                       fontWeight: 600,
                       cursor: 'pointer'
                     }}
@@ -296,12 +631,12 @@ const GoalView: React.FC = () => {
                     whileTap={{ scale: 0.95 }}
                     onClick={handleSave}
                     style={{
-                      padding: '12px 32px',
+                      padding: '10px 28px',
                       borderRadius: '12px',
                       background: '#6200ea',
                       border: 'none',
                       color: 'white',
-                      fontSize: '14px',
+                      fontSize: '13px',
                       fontWeight: 600,
                       cursor: 'pointer',
                       display: 'flex',
@@ -309,7 +644,7 @@ const GoalView: React.FC = () => {
                       gap: '8px'
                     }}
                   >
-                    <CheckCircle2 size={18} />
+                    <CheckCircle2 size={16} />
                     Update
                   </motion.button>
                 </div>
@@ -364,7 +699,7 @@ const GoalView: React.FC = () => {
               <motion.button
                 initial={{ opacity: 0, scale: 0 }}
                 animate={{ opacity: 1, scale: 1 }}
-                onClick={(e) => handleDelete(e, g.id)}
+                onClick={(e) => handleDeleteGoal(e, g.id)}
                 style={{
                   position: 'absolute',
                   top: '-8px',
