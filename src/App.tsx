@@ -63,6 +63,12 @@ interface Bookmark {
   customIconUrl?: string;
   isDashboardWidget?: boolean;
   useCoverIcon?: boolean;
+  workspaceId?: string;
+}
+
+interface Workspace {
+  id: string;
+  name: string;
 }
 
 const PAGE_IDS = ['dashboard', 'calendar'];
@@ -109,6 +115,17 @@ function App() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedFolderId, setExpandedFolderId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; id: string } | null>(null);
+  
+  // Workspaces state
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>(() => {
+    return localStorage.getItem('vivaldidash_workspace') || 'default';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('vivaldidash_workspace', activeWorkspaceId);
+  }, [activeWorkspaceId]);
+
   const [selectedBookmarkIdsState, setSelectedBookmarkIdsState] = useState<string[]>([]);
   const selectedBookmarkIdsRef = useRef<string[]>([]);
   
@@ -303,6 +320,19 @@ function App() {
       }
     });
 
+    const unsubWorkspaces = onSnapshot(collection(db, 'workspaces'), (snapshot) => {
+      const items: Workspace[] = [];
+      snapshot.forEach(d => items.push({ id: d.id, ...d.data() } as Workspace));
+      
+      if (items.length === 0) {
+        // Create default workspace if it doesn't exist
+        const defaultWorkspace = { name: 'Main Dashboard' };
+        setDoc(doc(db, 'workspaces', 'default'), defaultWorkspace).catch(console.error);
+        items.push({ id: 'default', ...defaultWorkspace });
+      }
+      setWorkspaces(items);
+    });
+
     const unsubSettings = onSnapshot(doc(db, 'settings', 'dashboard'), (d) => {
       if (d.exists()) {
         if (d.data().gridColumns) setGridColumns(d.data().gridColumns);
@@ -311,7 +341,7 @@ function App() {
       }
     });
 
-    return () => { unsubBookmarks(); unsubSettings(); };
+    return () => { unsubBookmarks(); unsubWorkspaces(); unsubSettings(); };
   }, [isLoading]);
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -360,7 +390,8 @@ function App() {
     const parentId = expandedFolderId;
     const pageBookmarks = bookmarks.filter(b => 
       (b.page || 'dashboard') === activePage && 
-      (parentId ? b.parentId === parentId : !b.parentId)
+      (parentId ? b.parentId === parentId : !b.parentId) &&
+      (b.workspaceId === activeWorkspaceId || (!b.workspaceId && activeWorkspaceId === 'default'))
     );
     const nextOrder = pageBookmarks.length;
     
@@ -369,6 +400,7 @@ function App() {
       url, 
       order: nextOrder, 
       page: parentId ? 'hidden' : activePage, 
+      workspaceId: activeWorkspaceId,
       ...iconProps 
     };
 
@@ -561,7 +593,7 @@ function App() {
         await updateDoc(doc(db, 'bookmarks', draggedBookmarkId), { parentId: overBookmark.parentId, page: 'hidden' });
       } else {
         const folderRef = await addDoc(collection(db, 'bookmarks'), {
-          title: 'Group', url: '', type: 'folder', order: overBookmark.order ?? 0, page: activePage
+          title: 'Group', url: '', type: 'folder', order: overBookmark.order ?? 0, page: activePage, workspaceId: activeWorkspaceId
         });
         await updateDoc(doc(db, 'bookmarks', overBookmark.id), { parentId: folderRef.id, page: 'hidden' });
         await updateDoc(doc(db, 'bookmarks', draggedBookmarkId), { parentId: folderRef.id, page: 'hidden' });
@@ -603,9 +635,10 @@ function App() {
   };
 
   const rootBookmarks = bookmarks.filter(b => 
-    expandedFolderId 
+    (expandedFolderId 
       ? b.parentId === expandedFolderId 
-      : ((b.page || 'dashboard') === activePage && !b.parentId)
+      : ((b.page || 'dashboard') === activePage && !b.parentId)) &&
+    (b.workspaceId === activeWorkspaceId || (!b.workspaceId && activeWorkspaceId === 'default'))
   );
   const totalItems = rootBookmarks.length + 1; // +1 for the 'Add' button
 
@@ -853,7 +886,7 @@ function App() {
                       </motion.div>
                     ) : (
                       <Dock 
-                        items={bookmarks.filter(b => b.page === 'dock').sort((a, b) => (a.order ?? 0) - (b.order ?? 0))}
+                        items={bookmarks.filter(b => b.page === 'dock' && (b.workspaceId === activeWorkspaceId || (!b.workspaceId && activeWorkspaceId === 'default'))).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))}
                         onContextMenu={handleContextMenu}
                         onBookmarkClick={handleBookmarkClick}
                         onMouseEnter={(item) => setHoveredBookmark({ 
@@ -871,25 +904,24 @@ function App() {
                       />
                     )}
 
-                    {rootBookmarks.length === 0 && !isLoading ? (
+                    {rootBookmarks.length === 0 && !isLoading && (
                       <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
                         style={{
                           display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          gap: '16px',
+                          justifyContent: 'center',
                           marginTop: '40px',
-                          color: 'rgba(255,255,255,0.3)',
+                          marginBottom: '-20px'
                         }}
                       >
-                        <div style={{ fontSize: '48px' }}>📂</div>
-                        <p style={{ fontSize: '16px', fontWeight: 300 }}>
-                          No bookmarks here yet.
+                        <p style={{ fontSize: '16px', fontWeight: 300, color: 'rgba(255,255,255,0.4)' }}>
+                          This workspace is empty. Click 'Add' below to get started.
                         </p>
                       </motion.div>
-                    ) : (
+                    )}
+
+                    {!isLoading && (
                         <SortableContext 
                           items={rootBookmarks.map(b => b.id)} 
                           strategy={rectSortingStrategy}
@@ -1179,6 +1211,13 @@ function App() {
         onClose={() => setIsSettingsOpen(false)}
         gridColumns={gridColumns}
         onGridColumnsChange={updateGridColumns}
+        workspaces={workspaces}
+        activeWorkspaceId={activeWorkspaceId}
+        onWorkspaceChange={setActiveWorkspaceId}
+        onCreateWorkspace={async (name) => {
+          const docRef = await addDoc(collection(db, 'workspaces'), { name });
+          setActiveWorkspaceId(docRef.id);
+        }}
       />
 
       {contextMenu && (
@@ -1238,7 +1277,8 @@ function App() {
               url: '', 
               type: 'folder', 
               order: targetOrder, 
-              page: activePage
+              page: activePage,
+              workspaceId: activeWorkspaceId
             });
 
             const batch = writeBatch(db);

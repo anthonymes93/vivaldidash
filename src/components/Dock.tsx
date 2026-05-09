@@ -48,21 +48,24 @@ const Dock: React.FC<DockProps> = ({
         background: isOver ? 'rgba(124, 77, 255, 0.05)' : 'transparent',
         backdropFilter: isOver ? 'blur(10px)' : 'none',
         borderRadius: '12px',
-        border: 'none',
+        border: items.length === 0 ? (isOver ? '2px dashed var(--accent-color)' : '2px dashed rgba(255,255,255,0.1)') : 'none',
         borderBottom: (items.length > 0 || isOver) 
           ? `2px solid ${isOver ? '#7c4dff' : 'rgba(255, 255, 255, 0.05)'}` 
           : 'none',
         boxShadow: isOver ? '0 10px 30px -10px rgba(124, 77, 255, 0.3)' : 'none',
         marginTop: '10px',
         marginBottom: '4px',
-        minHeight: (items.length > 0 || isOver) ? '40px' : '0',
-        justifyContent: 'flex-start',
+        minHeight: '60px',
+        justifyContent: items.length > 0 ? 'flex-start' : 'center',
         width: `${width}px`,
         maxWidth: '95%',
         margin: '10px auto 4px auto',
         transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
       }}
     >
+      {items.length === 0 && (
+        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>Drag icons here to pin to Dock</span>
+      )}
       <SortableContext items={items.map(i => i.id)} strategy={horizontalListSortingStrategy}>
         {items.map((item) => (
           <SortableBookmarkItem

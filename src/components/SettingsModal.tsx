@@ -2,19 +2,41 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, LayoutGrid } from 'lucide-react';
 
+interface Workspace {
+  id: string;
+  name: string;
+}
+
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   gridColumns: number;
   onGridColumnsChange: (cols: number) => void;
+  workspaces?: Workspace[];
+  activeWorkspaceId?: string;
+  onWorkspaceChange?: (id: string) => void;
+  onCreateWorkspace?: (name: string) => void;
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ 
   isOpen, 
   onClose, 
   gridColumns, 
-  onGridColumnsChange 
+  onGridColumnsChange,
+  workspaces = [],
+  activeWorkspaceId,
+  onWorkspaceChange,
+  onCreateWorkspace
 }) => {
+  const [newWorkspaceName, setNewWorkspaceName] = React.useState('');
+
+  const handleCreateWorkspace = () => {
+    if (newWorkspaceName.trim() && onCreateWorkspace) {
+      onCreateWorkspace(newWorkspaceName.trim());
+      setNewWorkspaceName('');
+    }
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -58,6 +80,56 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 <span>Spacious (4)</span>
               </div>
             </div>
+
+            {workspaces && workspaces.length > 0 && (
+              <div className="form-group" style={{ marginTop: '24px' }}>
+                <label style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.6)', marginBottom: '12px', display: 'block' }}>Workspaces</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {workspaces.map(ws => (
+                    <div 
+                      key={ws.id}
+                      onClick={() => onWorkspaceChange && onWorkspaceChange(ws.id)}
+                      style={{
+                        padding: '10px 12px',
+                        borderRadius: '8px',
+                        background: activeWorkspaceId === ws.id ? 'rgba(124, 77, 255, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                        border: activeWorkspaceId === ws.id ? '1px solid var(--accent-color)' : '1px solid transparent',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <span style={{ fontSize: '14px', fontWeight: activeWorkspaceId === ws.id ? 600 : 400 }}>{ws.name}</span>
+                      {activeWorkspaceId === ws.id && (
+                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-color)' }} />
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                  <input 
+                    type="text" 
+                    placeholder="New Workspace Name"
+                    className="modal-input"
+                    value={newWorkspaceName}
+                    onChange={e => setNewWorkspaceName(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleCreateWorkspace()}
+                    style={{ flex: 1, padding: '10px' }}
+                  />
+                  <button 
+                    className="primary-button" 
+                    onClick={handleCreateWorkspace}
+                    disabled={!newWorkspaceName.trim()}
+                    style={{ width: 'auto', padding: '0 16px', marginTop: 0 }}
+                  >
+                    Create
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div style={{ marginTop: '32px', paddingTop: '20px', borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
               <button 
