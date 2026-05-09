@@ -1,7 +1,9 @@
 import React from 'react';
-import { motion } from 'framer-motion';
-import { X, ExternalLink } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, ExternalLink, Star } from 'lucide-react';
 import BookmarkIcon from './BookmarkIcon';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 
 interface Bookmark {
   id: string;
@@ -12,6 +14,7 @@ interface Bookmark {
   lucideIcon?: string;
   iconColor?: string;
   customIconUrl?: string;
+  priorityText?: string;
 }
 
 interface ExpandedViewProps {
@@ -20,8 +23,21 @@ interface ExpandedViewProps {
   onSaveNotes: (notes: string) => void;
 }
 
-const AutoResizeTextarea = ({ value, onChange, placeholder, autoFocus }: { value: string, onChange: (val: string) => void, placeholder?: string, autoFocus?: boolean }) => {
+const AutoResizeTextarea = ({ 
+  value, 
+  onChange, 
+  placeholder, 
+  autoFocus,
+  onSetPriority 
+}: { 
+  value: string, 
+  onChange: (val: string) => void, 
+  placeholder?: string, 
+  autoFocus?: boolean,
+  onSetPriority: (text: string) => void
+}) => {
   const ref = React.useRef<HTMLTextAreaElement>(null);
+  const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number; text: string } | null>(null);
 
   React.useEffect(() => {
     if (ref.current) {
@@ -30,29 +46,107 @@ const AutoResizeTextarea = ({ value, onChange, placeholder, autoFocus }: { value
     }
   }, [value]);
 
+  const handleContextMenu = (e: React.MouseEvent) => {
+    if (!ref.current) return;
+    
+    const start = ref.current.selectionStart;
+    const end = ref.current.selectionEnd;
+    const selection = ref.current.value.substring(start, end).trim();
+
+    if (selection) {
+      e.preventDefault();
+      const rect = ref.current.getBoundingClientRect();
+      setContextMenu({ 
+        x: e.clientX - rect.left, 
+        y: e.clientY - rect.top, 
+        text: selection 
+      });
+    }
+  };
+
+  React.useEffect(() => {
+    const handleClickOutside = () => setContextMenu(null);
+    window.addEventListener('click', handleClickOutside);
+    return () => window.removeEventListener('click', handleClickOutside);
+  }, []);
+
   return (
-    <textarea
-      ref={ref}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      autoFocus={autoFocus}
-      rows={1}
-      className="notepad-textarea"
-      style={{
-        width: '100%',
-        background: 'transparent',
-        border: 'none',
-        outline: 'none',
-        color: 'rgba(255, 255, 255, 0.8)',
-        fontSize: '18px',
-        lineHeight: '1.6',
-        resize: 'none',
-        fontFamily: 'inherit',
-        overflow: 'hidden',
-        padding: 0,
-      }}
-    />
+    <div style={{ position: 'relative', width: '100%' }}>
+      <textarea
+        ref={ref}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onContextMenu={handleContextMenu}
+        placeholder={placeholder}
+        autoFocus={autoFocus}
+        rows={1}
+        className="notepad-textarea"
+        style={{
+          width: '100%',
+          background: 'transparent',
+          border: 'none',
+          outline: 'none',
+          color: 'rgba(255, 255, 255, 0.8)',
+          fontSize: '18px',
+          lineHeight: '1.6',
+          resize: 'none',
+          fontFamily: 'inherit',
+          overflow: 'hidden',
+          padding: 0,
+        }}
+      />
+      
+      <AnimatePresence>
+        {contextMenu && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            style={{
+              position: 'absolute',
+              top: contextMenu.y,
+              left: contextMenu.x,
+              zIndex: 10000,
+              background: 'rgba(20, 20, 25, 0.95)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '12px',
+              padding: '6px',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+              minWidth: '180px'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => {
+                onSetPriority(contextMenu.text);
+                setContextMenu(null);
+              }}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '10px 12px',
+                background: 'transparent',
+                border: 'none',
+                borderRadius: '8px',
+                color: 'white',
+                fontSize: '13px',
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'background 0.2s'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+            >
+              <Star size={14} color="#ffd02f" />
+              Set as Priority Text
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 };
 
@@ -148,6 +242,9 @@ const LinkPreviewCard = ({ url, onDelete }: { url: string, onDelete: () => void 
 };
 
 const ExpandedView: React.FC<ExpandedViewProps> = ({ bookmark, onClose, onSaveNotes }) => {
+  const handleSetPriority = async (text: string) => {
+    await updateDoc(doc(db, 'bookmarks', bookmark.id), { priorityText: text });
+  };
   const [notes, setNotes] = React.useState(bookmark.notes || '');
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   const blocks = notes.split(urlRegex);
@@ -322,6 +419,7 @@ const ExpandedView: React.FC<ExpandedViewProps> = ({ bookmark, onClose, onSaveNo
                   key={index}
                   value={block}
                   onChange={(val) => handleBlockChange(index, val)}
+                  onSetPriority={handleSetPriority}
                   placeholder={blocks.length === 1 ? "Type your notes here..." : ""}
                   autoFocus={index === blocks.length - 1}
                 />

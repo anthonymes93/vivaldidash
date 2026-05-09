@@ -18,6 +18,7 @@ interface Bookmark {
   lucideIcon?: string;
   iconColor?: string;
   customIconUrl?: string;
+  priorityText?: string;
   isDashboardWidget?: boolean;
   useCoverIcon?: boolean;
 }

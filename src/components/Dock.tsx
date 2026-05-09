@@ -14,6 +14,7 @@ interface Bookmark {
   lucideIcon?: string;
   iconColor?: string;
   customIconUrl?: string;
+  priorityText?: string;
 }
 
 interface DockProps {

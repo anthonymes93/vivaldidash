@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Search } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import BookmarkIcon from './BookmarkIcon';
 
@@ -11,6 +11,7 @@ interface SearchBarProps {
     lucideIcon?: string;
     iconColor?: string;
     customIconUrl?: string;
+    priorityText?: string;
   } | null;
 }
 
@@ -42,6 +43,9 @@ const BRAND_COLORS: Record<string, string> = {
 const SearchBar: React.FC<SearchBarProps> = ({ preview }) => {
   const [query, setQuery] = useState('');
   const [accentColor, setAccentColor] = useState('#7c4dff');
+  const [shouldMarquee, setShouldMarquee] = useState(false);
+  const textRef = useRef<HTMLSpanElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,6 +66,15 @@ const SearchBar: React.FC<SearchBarProps> = ({ preview }) => {
   };
 
   const faviconUrl = preview ? getFaviconUrl(preview.url) : '';
+
+  useEffect(() => {
+    if (textRef.current && containerRef.current) {
+      const isOverflowing = textRef.current.scrollWidth > containerRef.current.clientWidth;
+      setShouldMarquee(isOverflowing);
+    } else {
+      setShouldMarquee(false);
+    }
+  }, [preview?.priorityText]);
 
   useEffect(() => {
     if (!preview) {
@@ -239,10 +252,54 @@ const SearchBar: React.FC<SearchBarProps> = ({ preview }) => {
                 color: 'rgba(255, 255, 255, 0.6)',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px'
+                gap: '8px',
+                width: '100%'
               }}
             >
-              Go to <span style={{ color: accentColor, fontWeight: 500 }}>{preview.title}</span>
+              {preview.priorityText ? (
+                <span style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '8px', 
+                  overflow: 'hidden', 
+                  maxWidth: '100%',
+                  maskImage: shouldMarquee ? 'linear-gradient(to right, transparent, black 2%, black 95%, transparent)' : 'none'
+                }}>
+                  <Star size={14} color="#ffd02f" fill="#ffd02f" style={{ flexShrink: 0 }} />
+                  <div 
+                    ref={containerRef}
+                    style={{ 
+                      overflow: 'hidden', 
+                      whiteSpace: 'nowrap',
+                      display: 'flex',
+                      flex: 1
+                    }}>
+                    <motion.span 
+                      ref={textRef}
+                      initial={{ x: 0 }}
+                      animate={shouldMarquee ? { x: [0, -40, -(textRef.current?.scrollWidth || 200)] } : { x: 0 }}
+                      transition={{ 
+                        repeat: Infinity, 
+                        duration: 1 + ((textRef.current?.scrollWidth || 200) / 150), 
+                        ease: "linear",
+                        times: [0, 1 / (1 + ((textRef.current?.scrollWidth || 200) / 150)), 1],
+                        repeatDelay: 1.5,
+                        delay: 0.2
+                      }}
+                      style={{ 
+                        color: accentColor, 
+                        fontWeight: 500,
+                        paddingLeft: shouldMarquee ? '5px' : '0',
+                        paddingRight: shouldMarquee ? '60px' : '0'
+                      }}
+                    >
+                      {preview.priorityText}
+                    </motion.span>
+                  </div>
+                </span>
+              ) : (
+                <>Go to <span style={{ color: accentColor, fontWeight: 500 }}>{preview.title}</span></>
+              )}
             </motion.span>
           )}
         </AnimatePresence>

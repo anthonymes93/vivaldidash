@@ -41,10 +41,12 @@ import SettingsModal from './components/SettingsModal';
 import WhiteboardView from './components/WhiteboardView';
 import CalendarView from './components/CalendarView';
 import CalendarWidget from './components/CalendarWidget';
+import GoalView from './components/GoalView';
 import FolderCard from './components/FolderCard';
 
 import BackgroundSelectorModal from './components/BackgroundSelectorModal';
 import Dock from './components/Dock';
+import GroupNotes from './components/GroupNotes';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './App.css';
 
@@ -64,6 +66,8 @@ interface Bookmark {
   isDashboardWidget?: boolean;
   useCoverIcon?: boolean;
   workspaceId?: string;
+  priorityText?: string;
+  description?: string;
 }
 
 interface Workspace {
@@ -148,8 +152,13 @@ function App() {
     lucideIcon?: string;
     iconColor?: string;
     customIconUrl?: string;
+    priorityText?: string;
   } | null>(null);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editingTitleValue, setEditingTitleValue] = useState('');
+  const [isEditingDesc, setIsEditingDesc] = useState(false);
+  const [editingDescValue, setEditingDescValue] = useState('');
 
   const [backgrounds, setBackgrounds] = useState<string[]>([
     '/bg1.png', 
@@ -662,6 +671,7 @@ function App() {
 
     if (bookmark.type === 'folder') setExpandedFolderId(id);
     else if (bookmark.isDashboardWidget) setExpandedId(id);
+    else if (e?.shiftKey) setExpandedId(id); // Allow shift+click to open notes for any icon
     else window.location.href = bookmark.url;
   };
 
@@ -723,7 +733,8 @@ function App() {
       } else if (e.key === 'Backspace') {
         if (expandedFolderId) {
           e.preventDefault();
-          setExpandedFolderId(null);
+          const currentFolder = bookmarks.find(b => b.id === expandedFolderId);
+          setExpandedFolderId(currentFolder?.parentId || null);
           setKeyboardSelectedId(null);
         } else if (keyboardSelectedId) {
           e.preventDefault();
@@ -810,7 +821,10 @@ function App() {
             }}
             isDragging={!!activeId}
             expandedFolderId={expandedFolderId}
-            onBack={() => setExpandedFolderId(null)}
+            onBack={() => {
+              const currentFolder = bookmarks.find(b => b.id === expandedFolderId);
+              setExpandedFolderId(currentFolder?.parentId || null);
+            }}
             folderTitle={bookmarks.find(b => b.id === expandedFolderId)?.title}
           />
         </motion.div>
@@ -933,6 +947,8 @@ function App() {
                 </ErrorBoundary>
               ) : activePage === 'calendar' ? (
                 <CalendarView />
+              ) : activePage === 'goal' ? (
+                <GoalView />
               ) : (
                 <div 
                   onClick={(e) => e.stopPropagation()}
@@ -966,7 +982,10 @@ function App() {
                         <motion.button
                           whileHover={{ scale: 1.1, background: 'rgba(255, 255, 255, 0.15)' }}
                           whileTap={{ scale: 0.9 }}
-                          onClick={() => setExpandedFolderId(null)}
+                          onClick={() => {
+                            const currentFolder = bookmarks.find(b => b.id === expandedFolderId);
+                            setExpandedFolderId(currentFolder?.parentId || null);
+                          }}
                           style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -981,20 +1000,123 @@ function App() {
                             backdropFilter: 'blur(10px)',
                             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
                           }}
-                          title="Back to Dashboard"
+                          title="Back"
                         >
                           <ChevronLeft size={22} strokeWidth={2.5} />
                         </motion.button>
-                        <h1 style={{ 
-                          fontSize: '24px', 
-                          fontWeight: 600, 
-                          color: 'white', 
-                          margin: 0,
-                          letterSpacing: '-0.3px',
-                          textShadow: '0 2px 8px rgba(0,0,0,0.2)'
-                        }}>
-                          {bookmarks.find(b => b.id === expandedFolderId)?.title}
-                        </h1>
+                        
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                          {isEditingTitle ? (
+                            <input
+                              autoFocus
+                              value={editingTitleValue}
+                              onChange={(e) => setEditingTitleValue(e.target.value)}
+                              onBlur={async () => {
+                                if (expandedFolderId && editingTitleValue.trim()) {
+                                  await updateDoc(doc(db, 'bookmarks', expandedFolderId), { title: editingTitleValue });
+                                }
+                                setIsEditingTitle(false);
+                              }}
+                              onKeyDown={async (e) => {
+                                if (e.key === 'Enter') {
+                                  if (expandedFolderId && editingTitleValue.trim()) {
+                                    await updateDoc(doc(db, 'bookmarks', expandedFolderId), { title: editingTitleValue });
+                                  }
+                                  setIsEditingTitle(false);
+                                } else if (e.key === 'Escape') {
+                                  setIsEditingTitle(false);
+                                }
+                              }}
+                              style={{
+                                background: 'rgba(255, 255, 255, 0.1)',
+                                border: '1px solid rgba(255, 255, 255, 0.2)',
+                                borderRadius: '8px',
+                                padding: '4px 12px',
+                                fontSize: '24px',
+                                fontWeight: 600,
+                                color: 'white',
+                                outline: 'none',
+                                width: 'auto',
+                                minWidth: '200px'
+                              }}
+                            />
+                          ) : (
+                            <h1 
+                              onClick={() => {
+                                setIsEditingTitle(true);
+                                setEditingTitleValue(bookmarks.find(b => b.id === expandedFolderId)?.title || '');
+                              }}
+                              style={{ 
+                                fontSize: '24px', 
+                                fontWeight: 600, 
+                                color: 'white', 
+                                margin: 0,
+                                letterSpacing: '-0.3px',
+                                textShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              {bookmarks.find(b => b.id === expandedFolderId)?.title}
+                            </h1>
+                          )}
+
+                          <div style={{ 
+                            height: '24px', 
+                            width: '1px', 
+                            background: 'rgba(255, 255, 255, 0.1)',
+                            margin: '0 8px'
+                          }} />
+
+                          {isEditingDesc ? (
+                            <input
+                              autoFocus
+                              value={editingDescValue}
+                              onChange={(e) => setEditingDescValue(e.target.value)}
+                              onBlur={async () => {
+                                if (expandedFolderId) {
+                                  await updateDoc(doc(db, 'bookmarks', expandedFolderId), { description: editingDescValue });
+                                }
+                                setIsEditingDesc(false);
+                              }}
+                              onKeyDown={async (e) => {
+                                if (e.key === 'Enter') {
+                                  if (expandedFolderId) {
+                                    await updateDoc(doc(db, 'bookmarks', expandedFolderId), { description: editingDescValue });
+                                  }
+                                  setIsEditingDesc(false);
+                                } else if (e.key === 'Escape') {
+                                  setIsEditingDesc(false);
+                                }
+                              }}
+                              placeholder="Add a description..."
+                              style={{
+                                background: 'rgba(255, 255, 255, 0.05)',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                borderRadius: '6px',
+                                padding: '4px 10px',
+                                fontSize: '14px',
+                                color: 'rgba(255, 255, 255, 0.7)',
+                                outline: 'none',
+                                minWidth: '200px'
+                              }}
+                            />
+                          ) : (
+                            <span 
+                              onClick={() => {
+                                setIsEditingDesc(true);
+                                setEditingDescValue(bookmarks.find(b => b.id === expandedFolderId)?.description || '');
+                              }}
+                              style={{ 
+                                fontSize: '14px', 
+                                color: 'rgba(255, 255, 255, 0.5)',
+                                cursor: 'pointer',
+                                fontStyle: bookmarks.find(b => b.id === expandedFolderId)?.description ? 'normal' : 'italic'
+                              }}
+                            >
+                              {bookmarks.find(b => b.id === expandedFolderId)?.description || 'Add description...'}
+                            </span>
+                          )}
+                        </div>
                       </motion.div>
                     ) : (
                       <div style={{ 
@@ -1003,7 +1125,8 @@ function App() {
                         width: '100%', 
                         maxWidth: `${dynamicCols * iconSize + (dynamicCols - 1) * gap}px`,
                         margin: '0 auto',
-                        boxSizing: 'border-box' 
+                        boxSizing: 'border-box',
+                        marginTop: '20px'
                       }}>
                         <div style={{ flex: 1 }}>
                           <Dock 
@@ -1020,7 +1143,8 @@ function App() {
                               iconType: item.iconType,
                               lucideIcon: item.lucideIcon,
                               iconColor: item.iconColor,
-                              customIconUrl: item.customIconUrl
+                              customIconUrl: item.customIconUrl,
+                              priorityText: item.priorityText
                             })}
                             onMouseLeave={() => setHoveredBookmark(null)}
                             activeId={activeId}
@@ -1028,7 +1152,6 @@ function App() {
                           />
                         </div>
 
-                        {/* Divider Line */}
                         <div style={{ 
                           width: '1px', 
                           height: '24px', 
@@ -1052,7 +1175,8 @@ function App() {
                               iconType: item.iconType,
                               lucideIcon: item.lucideIcon,
                               iconColor: item.iconColor,
-                              customIconUrl: item.customIconUrl
+                              customIconUrl: item.customIconUrl,
+                              priorityText: item.priorityText
                             })}
                             onMouseLeave={() => setHoveredBookmark(null)}
                             activeId={activeId}
@@ -1060,7 +1184,6 @@ function App() {
                           />
                         </div>
 
-                        {/* Divider Line */}
                         <div style={{ 
                           width: '1px', 
                           height: '24px', 
@@ -1084,7 +1207,8 @@ function App() {
                               iconType: item.iconType,
                               lucideIcon: item.lucideIcon,
                               iconColor: item.iconColor,
-                              customIconUrl: item.customIconUrl
+                              customIconUrl: item.customIconUrl,
+                              priorityText: item.priorityText
                             })}
                             onMouseLeave={() => setHoveredBookmark(null)}
                             activeId={activeId}
@@ -1112,10 +1236,10 @@ function App() {
                     )}
 
                     {!isLoading && (
-                        <SortableContext 
-                          items={rootBookmarks.map(b => b.id)} 
-                          strategy={rectSortingStrategy}
-                        >
+                      <SortableContext 
+                        items={rootBookmarks.map(b => b.id)} 
+                        strategy={rectSortingStrategy}
+                      >
                         <ErrorBoundary>
                           <div
                             style={{
@@ -1143,7 +1267,8 @@ function App() {
                                   iconType: bookmark.iconType,
                                   lucideIcon: bookmark.lucideIcon,
                                   iconColor: bookmark.iconColor,
-                                  customIconUrl: bookmark.customIconUrl
+                                  customIconUrl: bookmark.customIconUrl,
+                                  priorityText: bookmark.priorityText
                                 })}
                                 onMouseLeave={() => setHoveredBookmark(null)}
                                 isDragging={activeId === bookmark.id}
@@ -1177,7 +1302,15 @@ function App() {
                   </div>
                   
                   <div style={{ flexShrink: 0, marginTop: '20px' }}>
-                    <CalendarWidget hoveredBookmark={hoveredBookmark} />
+                    {expandedFolderId ? (
+                      <GroupNotes 
+                        folderId={expandedFolderId} 
+                        notes={bookmarks.find(b => b.id === expandedFolderId)?.notes || ''}
+                        onUpdate={(notes) => updateNotes(expandedFolderId, notes)}
+                      />
+                    ) : (
+                      <CalendarWidget hoveredBookmark={hoveredBookmark} />
+                    )}
                   </div>
                 </div>
               )}
@@ -1428,6 +1561,26 @@ function App() {
                 : [...prev, contextMenu.id]
             );
           }}
+          onOpenNotes={() => setExpandedId(contextMenu.id)}
+          hasParent={!!bookmarks.find(b => b.id === contextMenu.id)?.parentId}
+          onMoveUp={async () => {
+            const id = contextMenu.id;
+            const bookmark = bookmarks.find(b => b.id === id);
+            if (!bookmark || !bookmark.parentId) return;
+            
+            const parentFolder = bookmarks.find(b => b.id === bookmark.parentId);
+            const grandparentId = parentFolder?.parentId || null;
+            
+            await updateDoc(doc(db, 'bookmarks', id), {
+              parentId: grandparentId ? grandparentId : deleteField(),
+              page: grandparentId ? 'hidden' : (parentFolder?.page || 'dashboard'),
+              order: bookmarks.filter(b => grandparentId ? b.parentId === grandparentId : !b.parentId).length
+            });
+            
+            if (expandedFolderId === bookmark.parentId) {
+              // Optionally stay or go back. The user said "send icon back", usually implies moving it OUT of current view.
+            }
+          }}
           onAddSelectedToGroup={async () => {
             const currentSelected = selectedBookmarkIdsRef.current;
             if (currentSelected.length > 0) {
@@ -1446,12 +1599,13 @@ function App() {
             const folderId = contextMenu.id;
             const children = bookmarks.filter(b => b.parentId === folderId);
             const folder = bookmarks.find(b => b.id === folderId);
+            const targetParentId = folder?.parentId || null;
             
             const batch = writeBatch(db);
             children.forEach(child => {
               batch.update(doc(db, 'bookmarks', child.id), { 
-                parentId: deleteField(), 
-                page: folder?.page || 'dashboard' 
+                parentId: targetParentId ? targetParentId : deleteField(), 
+                page: targetParentId ? 'hidden' : (folder?.page || 'dashboard')
               });
             });
             batch.delete(doc(db, 'bookmarks', folderId));
@@ -1462,13 +1616,16 @@ function App() {
             if (!targetBookmark) return;
 
             const targetOrder = targetBookmark.order ?? 0;
+            const parentId = expandedFolderId || targetBookmark.parentId || null;
+            
             const folderRef = await addDoc(collection(db, 'bookmarks'), {
               title: 'Group', 
               url: '', 
               type: 'folder', 
               order: targetOrder, 
-              page: activePage,
-              workspaceId: activeWorkspaceId
+              page: parentId ? 'hidden' : activePage,
+              workspaceId: activeWorkspaceId,
+              parentId: parentId
             });
 
             const batch = writeBatch(db);

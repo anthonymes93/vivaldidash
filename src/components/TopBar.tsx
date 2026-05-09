@@ -10,7 +10,8 @@ import {
   TrendingUp,
   Shield,
   Zap,
-  Search
+  Search,
+  Target
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDroppable } from '@dnd-kit/core';
@@ -30,6 +31,7 @@ const PAGES = [
   { id: 'dashboard', name: 'Dashboard', icon: <LayoutDashboard size={18} /> },
   { id: 'calendar', name: 'Calendar', icon: <Calendar size={18} /> },
   { id: 'whiteboard', name: 'Whiteboard', icon: <PenTool size={18} /> },
+  { id: 'goal', name: 'Main Goal', icon: <Target size={18} /> },
 ];
 
 const MEGA_MENU_ITEMS = {

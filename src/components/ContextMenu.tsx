@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trash2, Edit3, Maximize2, CheckSquare, FolderInput, Layers, FolderPlus } from 'lucide-react';
+import { Trash2, Edit3, Maximize2, CheckSquare, FolderInput, Layers, FolderPlus, StickyNote, ArrowUp } from 'lucide-react';
 
 interface ContextMenuProps {
   x: number;
@@ -16,6 +16,9 @@ interface ContextMenuProps {
   onAddSelectedToGroup: () => void;
   onBreakApartGroup: () => void;
   onCreateGroupWithSelected: () => void;
+  onOpenNotes: () => void;
+  onMoveUp?: () => void;
+  hasParent?: boolean;
 }
 
 const ContextMenu: React.FC<ContextMenuProps> = ({
@@ -32,6 +35,9 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
   onAddSelectedToGroup,
   onBreakApartGroup,
   onCreateGroupWithSelected,
+  onOpenNotes,
+  onMoveUp,
+  hasParent,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -70,8 +76,19 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
         >
           <div className="context-menu-item" onClick={() => { onExpand(); onClose(); }}>
             <Maximize2 size={16} />
-            <span>Expand</span>
+            <span>Expand Widget</span>
           </div>
+          <div className="context-menu-item" onClick={() => { onOpenNotes(); onClose(); }}>
+            <StickyNote size={16} />
+            <span>Quick Notes</span>
+          </div>
+
+          {hasParent && onMoveUp && (
+            <div className="context-menu-item" onClick={() => { onMoveUp(); onClose(); }}>
+              <ArrowUp size={16} />
+              <span>Send Icon Back</span>
+            </div>
+          )}
           <div className="context-menu-item" onClick={() => { onEdit(); onClose(); }}>
             <Edit3 size={16} />
             <span>Edit {isFolder ? 'Group' : 'Bookmark'}</span>
