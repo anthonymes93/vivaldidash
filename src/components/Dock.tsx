@@ -51,7 +51,7 @@ const Dock: React.FC<DockProps> = ({
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: '12px',
+        gap: `${Math.max(4, itemSize / 4)}px`,
         padding: items.length > 0 ? '4px 0' : (isOver ? '20px 0' : '0'),
         background: isOver ? 'rgba(124, 77, 255, 0.05)' : 'transparent',
         backdropFilter: isOver ? 'blur(10px)' : 'none',

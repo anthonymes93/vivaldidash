@@ -28,8 +28,12 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({
   return (
     <motion.div
       layoutId={`card-${id}`}
-      transition={{ type: 'spring', damping: 25, stiffness: 150 }}
-      whileHover={{ y: -5 * scale }}
+      transition={{ type: 'spring', damping: 20, stiffness: 200 }}
+      whileHover={{ 
+        y: noBackground ? -15 : -5, 
+        scale: noBackground ? 1.4 : 1.1,
+        zIndex: 100 
+      }}
       className={noBackground ? "" : "glass-card bookmark-card"}
       style={{
         position: 'relative',

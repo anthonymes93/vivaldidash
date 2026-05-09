@@ -653,7 +653,9 @@ function App() {
     if (count <= 6) return 56;
     if (count <= 12) return 42;
     if (count <= 18) return 32;
-    return 24;
+    if (count <= 24) return 24;
+    if (count <= 32) return 20;
+    return 16;
   };
 
   const dockItemSize = calculateDockItemSize(totalDockIcons);
@@ -955,7 +957,7 @@ function App() {
                     ) : (
                       <div style={{ 
                         display: 'flex', 
-                        gap: '12px', 
+                        gap: `${Math.max(4, dockItemSize / 4)}px`, 
                         width: '100%', 
                         maxWidth: `${dynamicCols * iconSize + (dynamicCols - 1) * gap}px`,
                         margin: '0 auto',
