@@ -535,11 +535,11 @@ function App() {
       return;
     }
 
-    if (overId === 'dock' || overId === 'dock_right' || (overBookmark && (overBookmark.page === 'dock' || overBookmark.page === 'dock_right'))) {
-      const targetPage = (overId === 'dock' || overId === 'dock_right') ? overId as string : overBookmark!.page!;
+    if (overId === 'dock' || overId === 'dock_center' || overId === 'dock_right' || (overBookmark && (overBookmark.page === 'dock' || overBookmark.page === 'dock_center' || overBookmark.page === 'dock_right'))) {
+      const targetPage = (overId === 'dock' || overId === 'dock_center' || overId === 'dock_right') ? overId as string : overBookmark!.page!;
       const targetDockBookmarks = bookmarks.filter(b => b.page === targetPage).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
       
-      if (overId === 'dock' || overId === 'dock_right') {
+      if (overId === 'dock' || overId === 'dock_center' || overId === 'dock_right') {
         await updateDoc(doc(db, 'bookmarks', draggedBookmarkId), { 
           page: targetPage, 
           parentId: null,
@@ -562,8 +562,8 @@ function App() {
     }
 
     // Move OUT of dock logic: If dragged from dock and dropped on grid/dashboard
-    if (draggedBookmark && (draggedBookmark.page === 'dock' || draggedBookmark.page === 'dock_right')) {
-      const isOverGrid = overId === 'dashboard' || (overBookmark && overBookmark.page !== 'dock' && overBookmark.page !== 'dock_right');
+    if (draggedBookmark && (draggedBookmark.page === 'dock' || draggedBookmark.page === 'dock_center' || draggedBookmark.page === 'dock_right')) {
+      const isOverGrid = overId === 'dashboard' || (overBookmark && overBookmark.page !== 'dock' && overBookmark.page !== 'dock_center' && overBookmark.page !== 'dock_right');
       if (isOverGrid) {
         await updateDoc(doc(db, 'bookmarks', draggedBookmarkId), { 
           page: activePage, 
@@ -644,14 +644,28 @@ function App() {
   );
 
   const dockBookmarks = bookmarks.filter(b => b.page === 'dock' && (b.workspaceId === activeWorkspaceId || (!b.workspaceId && activeWorkspaceId === 'default'))).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const dockCenterBookmarks = bookmarks.filter(b => b.page === 'dock_center' && (b.workspaceId === activeWorkspaceId || (!b.workspaceId && activeWorkspaceId === 'default'))).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   const dockRightBookmarks = bookmarks.filter(b => b.page === 'dock_right' && (b.workspaceId === activeWorkspaceId || (!b.workspaceId && activeWorkspaceId === 'default'))).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+  // Dynamic icon sizing for docks - based on TOTAL icons across all sections
+  const totalDockIcons = dockBookmarks.length + dockCenterBookmarks.length + dockRightBookmarks.length;
+  const calculateDockItemSize = (count: number) => {
+    if (count <= 6) return 56;
+    if (count <= 12) return 42;
+    if (count <= 18) return 32;
+    return 24;
+  };
+
+  const dockItemSize = calculateDockItemSize(totalDockIcons);
+  const dockCenterItemSize = dockItemSize;
+  const dockRightItemSize = dockItemSize;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (isModalOpen || isSettingsOpen || isBgModalOpen || contextMenu) return;
 
-      const navigableBookmarks = [...rootBookmarks, ...dockBookmarks, ...dockRightBookmarks];
+      const navigableBookmarks = [...rootBookmarks, ...dockBookmarks, ...dockCenterBookmarks, ...dockRightBookmarks];
       if (navigableBookmarks.length === 0) return;
 
       const currentIndex = keyboardSelectedId ? navigableBookmarks.findIndex(b => b.id === keyboardSelectedId) : -1;
@@ -706,7 +720,7 @@ function App() {
   
   // Calculate columns to match the screen's aspect ratio
   let dynamicCols = Math.ceil(Math.sqrt(totalItems * containerAspect));
-  dynamicCols = Math.max(3, Math.min(12, dynamicCols));
+  dynamicCols = Math.max(6, Math.min(12, dynamicCols));
   const dynamicRows = Math.ceil(totalItems / dynamicCols);
 
   const gap = 24;
@@ -941,11 +955,10 @@ function App() {
                     ) : (
                       <div style={{ 
                         display: 'flex', 
-                        gap: '24px', 
+                        gap: '12px', 
                         width: '100%', 
                         maxWidth: `${dynamicCols * iconSize + (dynamicCols - 1) * gap}px`,
                         margin: '0 auto',
-                        padding: '0 24px', 
                         boxSizing: 'border-box' 
                       }}>
                         <div style={{ flex: 1 }}>
@@ -967,8 +980,51 @@ function App() {
                             })}
                             onMouseLeave={() => setHoveredBookmark(null)}
                             activeId={activeId}
+                            itemSize={dockItemSize}
                           />
                         </div>
+
+                        {/* Divider Line */}
+                        <div style={{ 
+                          width: '1px', 
+                          height: '24px', 
+                          background: 'rgba(255,255,255,0.2)',
+                          margin: '0 12px',
+                          alignSelf: 'center'
+                        }} />
+
+                        <div style={{ flex: 1 }}>
+                          <Dock 
+                            id="dock_center"
+                            align="center"
+                            items={dockCenterBookmarks}
+                            keyboardSelectedId={keyboardSelectedId}
+                            onContextMenu={handleContextMenu}
+                            onBookmarkClick={handleBookmarkClick}
+                            onMouseEnter={(item) => setHoveredBookmark({ 
+                              id: item.id, 
+                              title: item.title, 
+                              url: item.url,
+                              iconType: item.iconType,
+                              lucideIcon: item.lucideIcon,
+                              iconColor: item.iconColor,
+                              customIconUrl: item.customIconUrl
+                            })}
+                            onMouseLeave={() => setHoveredBookmark(null)}
+                            activeId={activeId}
+                            itemSize={dockCenterItemSize}
+                          />
+                        </div>
+
+                        {/* Divider Line */}
+                        <div style={{ 
+                          width: '1px', 
+                          height: '24px', 
+                          background: 'rgba(255,255,255,0.2)',
+                          margin: '0 12px',
+                          alignSelf: 'center'
+                        }} />
+
                         <div style={{ flex: 1 }}>
                           <Dock 
                             id="dock_right"
@@ -988,6 +1044,7 @@ function App() {
                             })}
                             onMouseLeave={() => setHoveredBookmark(null)}
                             activeId={activeId}
+                            itemSize={dockRightItemSize}
                           />
                         </div>
                       </div>

@@ -18,7 +18,7 @@ interface Bookmark {
 
 interface DockProps {
   id?: string;
-  align?: 'left' | 'right';
+  align?: 'left' | 'right' | 'center';
   items: Bookmark[];
   onContextMenu: (e: React.MouseEvent, id: string) => void;
   onBookmarkClick: (url: string) => void;
@@ -27,6 +27,7 @@ interface DockProps {
   activeId: string | null;
   width?: number | string;
   keyboardSelectedId?: string | null;
+  itemSize: number;
 }
 
 const Dock: React.FC<DockProps> = ({ 
@@ -39,7 +40,8 @@ const Dock: React.FC<DockProps> = ({
   onMouseLeave,
   activeId, 
   width,
-  keyboardSelectedId
+  keyboardSelectedId,
+  itemSize
 }) => {
   const { setNodeRef, isOver } = useDroppable({ id });
  
@@ -54,7 +56,7 @@ const Dock: React.FC<DockProps> = ({
         background: isOver ? 'rgba(124, 77, 255, 0.05)' : 'transparent',
         backdropFilter: isOver ? 'blur(10px)' : 'none',
         borderRadius: '12px',
-        border: items.length === 0 ? (isOver ? '2px dashed var(--accent-color)' : '2px dashed rgba(255,255,255,0.1)') : 'none',
+        border: 'none',
         borderBottom: (items.length > 0 || isOver) 
           ? `2px solid ${isOver ? '#7c4dff' : 'rgba(255, 255, 255, 0.05)'}` 
           : 'none',
@@ -62,16 +64,13 @@ const Dock: React.FC<DockProps> = ({
         marginTop: '10px',
         marginBottom: '4px',
         minHeight: '60px',
-        justifyContent: items.length > 0 ? (align === 'left' ? 'flex-start' : 'flex-end') : 'center',
+        justifyContent: items.length > 0 ? (align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center') : 'center',
         width: width ? (typeof width === 'number' ? `${width}px` : width) : '100%',
         maxWidth: '100%',
         margin: width ? '10px auto 4px auto' : '10px 0 4px 0',
         transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
       }}
     >
-      {items.length === 0 && (
-        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>Drag icons here to pin to Dock</span>
-      )}
       <SortableContext items={items.map(i => i.id)} strategy={horizontalListSortingStrategy}>
         {items.map((item) => (
           <SortableBookmarkItem
@@ -83,7 +82,7 @@ const Dock: React.FC<DockProps> = ({
             onMouseLeave={onMouseLeave}
             isDragging={activeId === item.id}
             isSelected={keyboardSelectedId === item.id}
-            size={32}
+            size={itemSize}
             hideTitle={true}
             noBackground={true}
           />
