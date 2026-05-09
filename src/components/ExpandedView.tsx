@@ -20,7 +20,154 @@ interface ExpandedViewProps {
   onSaveNotes: (notes: string) => void;
 }
 
+const AutoResizeTextarea = ({ value, onChange, placeholder, autoFocus }: { value: string, onChange: (val: string) => void, placeholder?: string, autoFocus?: boolean }) => {
+  const ref = React.useRef<HTMLTextAreaElement>(null);
+
+  React.useEffect(() => {
+    if (ref.current) {
+      ref.current.style.height = 'auto';
+      ref.current.style.height = ref.current.scrollHeight + 'px';
+    }
+  }, [value]);
+
+  return (
+    <textarea
+      ref={ref}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      autoFocus={autoFocus}
+      rows={1}
+      className="notepad-textarea"
+      style={{
+        width: '100%',
+        background: 'transparent',
+        border: 'none',
+        outline: 'none',
+        color: 'rgba(255, 255, 255, 0.8)',
+        fontSize: '18px',
+        lineHeight: '1.6',
+        resize: 'none',
+        fontFamily: 'inherit',
+        overflow: 'hidden',
+        padding: 0,
+      }}
+    />
+  );
+};
+
+const LinkPreviewCard = ({ url, onDelete }: { url: string, onDelete: () => void }) => {
+  const [data, setData] = React.useState<any>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}`)
+      .then(res => res.json())
+      .then(res => {
+        if (res.status === 'success') {
+          setData(res.data);
+        }
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [url]);
+
+  if (loading) {
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(255, 255, 255, 0.02)',
+        padding: '12px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.05)', marginTop: '12px'
+      }}>
+        <div style={{ width: 24, height: 24, borderRadius: '4px', background: 'rgba(255,255,255,0.1)', animation: 'pulse 1.5s infinite' }} />
+        <div style={{ width: '150px', height: '14px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', animation: 'pulse 1.5s infinite' }} />
+      </div>
+    );
+  }
+
+  const title = data?.title || url;
+  const publisher = data?.publisher || new URL(url).hostname;
+  const logoUrl = data?.logo?.url;
+
+  return (
+    <a 
+      href={url} 
+      target="_blank" 
+      rel="noopener noreferrer"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        background: 'rgba(255, 255, 255, 0.05)',
+        padding: '12px',
+        borderRadius: '12px',
+        textDecoration: 'none',
+        color: 'white',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        marginTop: '12px',
+        transition: 'all 0.2s',
+        width: '100%',
+        boxSizing: 'border-box',
+        overflow: 'hidden',
+      }}
+      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+      onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+    >
+      {logoUrl ? (
+        <img src={logoUrl} alt="logo" style={{ width: 24, height: 24, borderRadius: '4px', flexShrink: 0 }} />
+      ) : (
+        <ExternalLink size={20} opacity={0.5} style={{ flexShrink: 0 }} />
+      )}
+      <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', flex: 1, minWidth: 0 }}>
+        <span style={{ fontSize: '14px', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {title}
+        </span>
+        <span style={{ fontSize: '11px', opacity: 0.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{publisher}</span>
+      </div>
+      <button 
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }}
+        style={{
+          background: 'rgba(255,255,255,0.1)',
+          border: 'none',
+          borderRadius: '50%',
+          width: '24px',
+          height: '24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          color: 'white',
+          opacity: 0.6,
+        }}
+        onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+        onMouseLeave={(e) => e.currentTarget.style.opacity = '0.6'}
+      >
+        <X size={14} />
+      </button>
+    </a>
+  );
+};
+
 const ExpandedView: React.FC<ExpandedViewProps> = ({ bookmark, onClose, onSaveNotes }) => {
+  const [notes, setNotes] = React.useState(bookmark.notes || '');
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const blocks = notes.split(urlRegex);
+
+  const handleBlockChange = (index: number, newValue: string) => {
+    const newBlocks = [...blocks];
+    newBlocks[index] = newValue;
+    const newNotes = newBlocks.join('');
+    setNotes(newNotes);
+    onSaveNotes(newNotes);
+  };
+
+  const handleLinkDelete = (index: number) => {
+    const newBlocks = [...blocks];
+    newBlocks[index] = ''; // Remove the URL
+    const newNotes = newBlocks.join('');
+    setNotes(newNotes);
+    onSaveNotes(newNotes);
+  };
+  
   let displayHostname = '';
   if (bookmark.url) {
     try {
@@ -158,24 +305,29 @@ const ExpandedView: React.FC<ExpandedViewProps> = ({ bookmark, onClose, onSaveNo
             <div style={{ flex: 1, height: '1px', background: 'rgba(255, 255, 255, 0.1)' }} />
           </div>
 
-          <textarea
-            autoFocus
-            defaultValue={bookmark.notes || ''}
-            onChange={(e) => onSaveNotes(e.target.value)}
-            placeholder="Type your notes here..."
-            className="notepad-textarea"
-            style={{
-              flex: 1,
-              background: 'transparent',
-              border: 'none',
-              outline: 'none',
-              color: 'rgba(255, 255, 255, 0.8)',
-              fontSize: '18px',
-              lineHeight: '1.6',
-              resize: 'none',
-              fontFamily: 'inherit',
-            }}
-          />
+          <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '20px' }}>
+            {blocks.map((block, index) => {
+              if (block.match(urlRegex)) {
+                return (
+                  <div key={index} style={{ margin: '8px 0' }}>
+                    <LinkPreviewCard url={block} onDelete={() => handleLinkDelete(index)} />
+                  </div>
+                );
+              }
+              // Skip empty text blocks unless it's the very last one (to allow typing at the end)
+              if (block === '' && index !== blocks.length - 1 && index !== 0) return null;
+
+              return (
+                <AutoResizeTextarea
+                  key={index}
+                  value={block}
+                  onChange={(val) => handleBlockChange(index, val)}
+                  placeholder={blocks.length === 1 ? "Type your notes here..." : ""}
+                  autoFocus={index === blocks.length - 1}
+                />
+              );
+            })}
+          </div>
         </motion.div>
       </motion.div>
 

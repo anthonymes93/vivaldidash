@@ -115,6 +115,7 @@ function App() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedFolderId, setExpandedFolderId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; id: string } | null>(null);
+  const [keyboardSelectedId, setKeyboardSelectedId] = useState<string | null>(null);
   
   // Workspaces state
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -534,34 +535,35 @@ function App() {
       return;
     }
 
-    if (overId === 'dock' || (overBookmark && overBookmark.page === 'dock')) {
-      const dockBookmarks = bookmarks.filter(b => b.page === 'dock').sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    if (overId === 'dock' || overId === 'dock_right' || (overBookmark && (overBookmark.page === 'dock' || overBookmark.page === 'dock_right'))) {
+      const targetPage = (overId === 'dock' || overId === 'dock_right') ? overId as string : overBookmark!.page!;
+      const targetDockBookmarks = bookmarks.filter(b => b.page === targetPage).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
       
-      if (overId === 'dock') {
+      if (overId === 'dock' || overId === 'dock_right') {
         await updateDoc(doc(db, 'bookmarks', draggedBookmarkId), { 
-          page: 'dock', 
+          page: targetPage, 
           parentId: null,
-          order: dockBookmarks.length 
+          order: targetDockBookmarks.length 
         });
       } else {
-        const oldIdx = dockBookmarks.findIndex(b => b.id === draggedBookmarkId);
-        const newIdx = dockBookmarks.findIndex(b => b.id === overId);
+        const oldIdx = targetDockBookmarks.findIndex(b => b.id === draggedBookmarkId);
+        const newIdx = targetDockBookmarks.findIndex(b => b.id === overId);
         
         if (oldIdx !== -1) {
-          const reordered = arrayMove(dockBookmarks, oldIdx, newIdx);
+          const reordered = arrayMove(targetDockBookmarks, oldIdx, newIdx);
           reordered.forEach(async (b, idx) => {
             await updateDoc(doc(db, 'bookmarks', b.id), { order: idx });
           });
         } else {
-          await updateDoc(doc(db, 'bookmarks', draggedBookmarkId), { page: 'dock', parentId: null, order: 0 });
+          await updateDoc(doc(db, 'bookmarks', draggedBookmarkId), { page: targetPage, parentId: null, order: 0 });
         }
       }
       return;
     }
 
     // Move OUT of dock logic: If dragged from dock and dropped on grid/dashboard
-    if (draggedBookmark && draggedBookmark.page === 'dock') {
-      const isOverGrid = overId === 'dashboard' || (overBookmark && overBookmark.page !== 'dock');
+    if (draggedBookmark && (draggedBookmark.page === 'dock' || draggedBookmark.page === 'dock_right')) {
+      const isOverGrid = overId === 'dashboard' || (overBookmark && overBookmark.page !== 'dock' && overBookmark.page !== 'dock_right');
       if (isOverGrid) {
         await updateDoc(doc(db, 'bookmarks', draggedBookmarkId), { 
           page: activePage, 
@@ -640,6 +642,58 @@ function App() {
       : ((b.page || 'dashboard') === activePage && !b.parentId)) &&
     (b.workspaceId === activeWorkspaceId || (!b.workspaceId && activeWorkspaceId === 'default'))
   );
+
+  const dockBookmarks = bookmarks.filter(b => b.page === 'dock' && (b.workspaceId === activeWorkspaceId || (!b.workspaceId && activeWorkspaceId === 'default'))).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const dockRightBookmarks = bookmarks.filter(b => b.page === 'dock_right' && (b.workspaceId === activeWorkspaceId || (!b.workspaceId && activeWorkspaceId === 'default'))).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (isModalOpen || isSettingsOpen || isBgModalOpen || contextMenu) return;
+
+      const navigableBookmarks = [...rootBookmarks, ...dockBookmarks, ...dockRightBookmarks];
+      if (navigableBookmarks.length === 0) return;
+
+      const currentIndex = keyboardSelectedId ? navigableBookmarks.findIndex(b => b.id === keyboardSelectedId) : -1;
+
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        const nextIndex = currentIndex < navigableBookmarks.length - 1 ? currentIndex + 1 : 0;
+        setKeyboardSelectedId(navigableBookmarks[nextIndex].id);
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        let prevIndex = currentIndex - 1;
+        if (prevIndex < 0) prevIndex = navigableBookmarks.length - 1;
+        setKeyboardSelectedId(navigableBookmarks[prevIndex].id);
+      } else if (e.key === 'Enter') {
+        if (keyboardSelectedId) {
+          e.preventDefault();
+          handleBookmarkClick(keyboardSelectedId);
+        }
+      } else if (e.key === 'Backspace') {
+        if (expandedFolderId) {
+          e.preventDefault();
+          setExpandedFolderId(null);
+          setKeyboardSelectedId(null);
+        } else if (keyboardSelectedId) {
+          e.preventDefault();
+          setKeyboardSelectedId(null);
+        }
+      }
+    };
+
+    const handleGlobalClick = () => {
+      setKeyboardSelectedId(null);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('mousedown', handleGlobalClick);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('mousedown', handleGlobalClick);
+    };
+  }, [rootBookmarks, dockBookmarks, keyboardSelectedId, isModalOpen, isSettingsOpen, isBgModalOpen, contextMenu, handleBookmarkClick, expandedFolderId]);
+
   const totalItems = rootBookmarks.length + 1; // +1 for the 'Add' button
 
   // Balanced grid math: try to make the grid roughly square-ish based on available space
@@ -885,23 +939,58 @@ function App() {
                         </h1>
                       </motion.div>
                     ) : (
-                      <Dock 
-                        items={bookmarks.filter(b => b.page === 'dock' && (b.workspaceId === activeWorkspaceId || (!b.workspaceId && activeWorkspaceId === 'default'))).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))}
-                        onContextMenu={handleContextMenu}
-                        onBookmarkClick={handleBookmarkClick}
-                        onMouseEnter={(item) => setHoveredBookmark({ 
-                          id: item.id, 
-                          title: item.title, 
-                          url: item.url,
-                          iconType: item.iconType,
-                          lucideIcon: item.lucideIcon,
-                          iconColor: item.iconColor,
-                          customIconUrl: item.customIconUrl
-                        })}
-                        onMouseLeave={() => setHoveredBookmark(null)}
-                        activeId={activeId}
-                        width={dynamicCols * iconSize + (dynamicCols - 1) * gap}
-                      />
+                      <div style={{ 
+                        display: 'flex', 
+                        gap: '24px', 
+                        width: '100%', 
+                        maxWidth: `${dynamicCols * iconSize + (dynamicCols - 1) * gap}px`,
+                        margin: '0 auto',
+                        padding: '0 24px', 
+                        boxSizing: 'border-box' 
+                      }}>
+                        <div style={{ flex: 1 }}>
+                          <Dock 
+                            id="dock"
+                            align="left"
+                            items={dockBookmarks}
+                            keyboardSelectedId={keyboardSelectedId}
+                            onContextMenu={handleContextMenu}
+                            onBookmarkClick={handleBookmarkClick}
+                            onMouseEnter={(item) => setHoveredBookmark({ 
+                              id: item.id, 
+                              title: item.title, 
+                              url: item.url,
+                              iconType: item.iconType,
+                              lucideIcon: item.lucideIcon,
+                              iconColor: item.iconColor,
+                              customIconUrl: item.customIconUrl
+                            })}
+                            onMouseLeave={() => setHoveredBookmark(null)}
+                            activeId={activeId}
+                          />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <Dock 
+                            id="dock_right"
+                            align="right"
+                            items={dockRightBookmarks}
+                            keyboardSelectedId={keyboardSelectedId}
+                            onContextMenu={handleContextMenu}
+                            onBookmarkClick={handleBookmarkClick}
+                            onMouseEnter={(item) => setHoveredBookmark({ 
+                              id: item.id, 
+                              title: item.title, 
+                              url: item.url,
+                              iconType: item.iconType,
+                              lucideIcon: item.lucideIcon,
+                              iconColor: item.iconColor,
+                              customIconUrl: item.customIconUrl
+                            })}
+                            onMouseLeave={() => setHoveredBookmark(null)}
+                            activeId={activeId}
+                          />
+                        </div>
+                      </div>
                     )}
 
                     {rootBookmarks.length === 0 && !isLoading && (
@@ -945,7 +1034,7 @@ function App() {
                                 folderChildren={bookmarks.filter(b => b.parentId === bookmark.id)}
                                 onContextMenu={handleContextMenu}
                                 onClick={handleBookmarkClick}
-                                isSelected={selectedBookmarkIdsState.includes(bookmark.id)}
+                                isSelected={selectedBookmarkIdsState.includes(bookmark.id) || keyboardSelectedId === bookmark.id}
                                 onMouseEnter={() => setHoveredBookmark({ 
                                   id: bookmark.id, 
                                   title: bookmark.title, 

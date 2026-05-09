@@ -108,7 +108,7 @@ export function SortableBookmarkItem({
         ...style,
         position: 'relative',
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        scale: isCombining ? 0.94 : 1,
+        scale: isCombining ? 0.94 : (isSelected ? 1.03 : 1),
       }} 
       {...attributes} 
       {...listeners}
@@ -133,19 +133,19 @@ export function SortableBookmarkItem({
       )}
 
       {isSelected && (
-        <div style={{
-          position: 'absolute',
-          top: -4 * scale,
-          right: -4 * scale,
-          width: 14 * scale,
-          height: 14 * scale,
-          background: '#ff4444',
-          borderRadius: '50%',
-          border: '2px solid white',
-          zIndex: 100,
-          boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-          pointerEvents: 'none'
-        }} />
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          style={{
+            position: 'absolute',
+            inset: -3 * scale,
+            border: `${1.5 * scale}px solid rgba(255, 255, 255, 0.3)`,
+            borderRadius: `${26 * scale}px`,
+            boxShadow: `0 0 ${15 * scale}px rgba(255, 255, 255, 0.15)`,
+            zIndex: 10,
+            pointerEvents: 'none',
+          }}
+        />
       )}
 
       {bookmark.type === 'folder' && !bookmark.useCoverIcon ? (

@@ -17,25 +17,31 @@ interface Bookmark {
 }
 
 interface DockProps {
+  id?: string;
+  align?: 'left' | 'right';
   items: Bookmark[];
   onContextMenu: (e: React.MouseEvent, id: string) => void;
   onBookmarkClick: (url: string) => void;
   onMouseEnter: (item: Bookmark) => void;
   onMouseLeave: () => void;
   activeId: string | null;
-  width?: number;
+  width?: number | string;
+  keyboardSelectedId?: string | null;
 }
 
 const Dock: React.FC<DockProps> = ({ 
+  id = 'dock',
+  align = 'left',
   items, 
   onContextMenu, 
   onBookmarkClick, 
   onMouseEnter,
   onMouseLeave,
   activeId, 
-  width = 600 
+  width,
+  keyboardSelectedId
 }) => {
-  const { setNodeRef, isOver } = useDroppable({ id: 'dock' });
+  const { setNodeRef, isOver } = useDroppable({ id });
  
   return (
     <div
@@ -56,10 +62,10 @@ const Dock: React.FC<DockProps> = ({
         marginTop: '10px',
         marginBottom: '4px',
         minHeight: '60px',
-        justifyContent: items.length > 0 ? 'flex-start' : 'center',
-        width: `${width}px`,
-        maxWidth: '95%',
-        margin: '10px auto 4px auto',
+        justifyContent: items.length > 0 ? (align === 'left' ? 'flex-start' : 'flex-end') : 'center',
+        width: width ? (typeof width === 'number' ? `${width}px` : width) : '100%',
+        maxWidth: '100%',
+        margin: width ? '10px auto 4px auto' : '10px 0 4px 0',
         transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
       }}
     >
@@ -76,6 +82,7 @@ const Dock: React.FC<DockProps> = ({
             onMouseEnter={() => onMouseEnter(item)}
             onMouseLeave={onMouseLeave}
             isDragging={activeId === item.id}
+            isSelected={keyboardSelectedId === item.id}
             size={32}
             hideTitle={true}
             noBackground={true}
