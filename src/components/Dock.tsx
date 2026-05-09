@@ -21,7 +21,7 @@ interface DockProps {
   align?: 'left' | 'right' | 'center';
   items: Bookmark[];
   onContextMenu: (e: React.MouseEvent, id: string) => void;
-  onBookmarkClick: (url: string) => void;
+  onBookmarkClick: (id: string, e?: React.MouseEvent) => void;
   onMouseEnter: (item: Bookmark) => void;
   onMouseLeave: () => void;
   activeId: string | null;

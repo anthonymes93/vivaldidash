@@ -25,7 +25,7 @@ interface Bookmark {
 interface SortableBookmarkItemProps {
   bookmark: Bookmark;
   onContextMenu: (e: React.MouseEvent, id: string) => void;
-  onClick: (id: string) => void;
+  onClick: (id: string, e?: React.MouseEvent) => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
   isDragging: boolean;
@@ -154,14 +154,14 @@ export function SortableBookmarkItem({
           title={bookmark.title}
           children={folderChildren}
           onContextMenu={onContextMenu}
-          onClick={() => onClick(bookmark.id)}
+          onClick={(e) => onClick(bookmark.id, e)}
           size={size}
           hideTitle={hideTitle}
         />
       ) : (
         <BookmarkCard
           {...bookmark}
-          onClick={() => onClick(bookmark.id)}
+          onClick={(e) => onClick(bookmark.id, e)}
           onContextMenu={onContextMenu}
           size={size}
           hideTitle={hideTitle}

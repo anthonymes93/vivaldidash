@@ -8,7 +8,7 @@ interface BookmarkCardProps {
   title: string;
   url: string;
   onContextMenu: (e: React.MouseEvent, id: string) => void;
-  onClick: () => void;
+  onClick: (e: React.MouseEvent) => void;
   size?: number;
   hideTitle?: boolean;
   noBackground?: boolean;
@@ -49,7 +49,7 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({
         border: noBackground ? 'none' : undefined,
         backdropFilter: noBackground ? 'none' : undefined,
       }}
-      onClick={onClick}
+      onClick={(e) => onClick(e)}
       onContextMenu={(e) => onContextMenu(e, id)}
     >
       {isDashboardWidget && (

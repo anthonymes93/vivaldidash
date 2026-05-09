@@ -116,6 +116,7 @@ function App() {
   const [expandedFolderId, setExpandedFolderId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; id: string } | null>(null);
   const [keyboardSelectedId, setKeyboardSelectedId] = useState<string | null>(null);
+  const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
   
   // Workspaces state
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -622,10 +623,43 @@ function App() {
     setContextMenu({ x: e.clientX, y: e.clientY, id });
   }, []);
 
-  const handleBookmarkClick = (id: string) => {
+  const handleBookmarkClick = (id: string, e?: React.MouseEvent) => {
     if (activeId) return;
     const bookmark = bookmarks.find(b => b.id === id);
     if (!bookmark) return;
+
+    if (e?.ctrlKey || e?.metaKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const selectable = rootBookmarks;
+      if (lastSelectedId && selectedBookmarkIdsState.includes(lastSelectedId)) {
+        const startIdx = selectable.findIndex(b => b.id === lastSelectedId);
+        const endIdx = selectable.findIndex(b => b.id === id);
+        
+        if (startIdx !== -1 && endIdx !== -1) {
+          const min = Math.min(startIdx, endIdx);
+          const max = Math.max(startIdx, endIdx);
+          const rangeIds = selectable.slice(min, max + 1).map(b => b.id);
+          
+          setSelectedBookmarkIds(prev => {
+            const next = [...new Set([...prev, ...rangeIds])];
+            return next;
+          });
+        }
+      } else {
+        setSelectedBookmarkIds(prev => prev.includes(id) ? prev.filter(bid => bid !== id) : [...prev, id]);
+      }
+      setLastSelectedId(id);
+      return;
+    }
+
+    // Clear selection if clicking without ctrl
+    if (selectedBookmarkIdsState.length > 0) {
+      setSelectedBookmarkIds([]);
+      setLastSelectedId(null);
+    }
+
     if (bookmark.type === 'folder') setExpandedFolderId(id);
     else if (bookmark.isDashboardWidget) setExpandedId(id);
     else window.location.href = bookmark.url;
@@ -694,6 +728,14 @@ function App() {
         } else if (keyboardSelectedId) {
           e.preventDefault();
           setKeyboardSelectedId(null);
+        }
+      } else if (e.key === 'Delete') {
+        if (selectedBookmarkIdsState.length > 0) {
+          e.preventDefault();
+          if (window.confirm(`Delete ${selectedBookmarkIdsState.length} selected items?`)) {
+            selectedBookmarkIdsState.forEach(id => deleteBookmark(id));
+            setSelectedBookmarkIds([]);
+          }
         }
       }
     };

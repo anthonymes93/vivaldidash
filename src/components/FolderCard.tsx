@@ -18,7 +18,7 @@ interface FolderCardProps {
   title: string;
   children: Bookmark[];
   onContextMenu: (e: React.MouseEvent, id: string) => void;
-  onClick: () => void;
+  onClick: (e: React.MouseEvent) => void;
   size?: number;
   hideTitle?: boolean;
 }
@@ -46,7 +46,7 @@ const FolderCard: React.FC<FolderCardProps> = ({ id, title, children, onContextM
         borderRadius: `${24 * scale}px`,
         backdropFilter: 'blur(20px)',
       }}
-      onClick={onClick}
+      onClick={(e) => onClick(e)}
       onContextMenu={(e) => onContextMenu(e, id)}
     >
       <div style={{
