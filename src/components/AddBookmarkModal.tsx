@@ -13,6 +13,7 @@ interface Bookmark {
   customIconUrl?: string;
   isDashboardWidget?: boolean;
   type?: 'bookmark' | 'folder';
+  useCoverIcon?: boolean;
 }
 
 interface AddBookmarkModalProps {
@@ -48,6 +49,7 @@ const AddBookmarkModal: React.FC<AddBookmarkModalProps> = ({
   const [iconColor, setIconColor] = useState('#ffffff');
   const [customIconUrl, setCustomIconUrl] = useState('');
   const [isDashboardWidget, setIsDashboardWidget] = useState(false);
+  const [useCoverIcon, setUseCoverIcon] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -61,6 +63,7 @@ const AddBookmarkModal: React.FC<AddBookmarkModalProps> = ({
       setIconColor(editData.iconColor || '#ffffff');
       setCustomIconUrl(editData.customIconUrl || '');
       setIsDashboardWidget(editData.isDashboardWidget || false);
+      setUseCoverIcon(editData.useCoverIcon || false);
     } else {
       setTitle('');
       setUrl('');
@@ -145,7 +148,7 @@ const AddBookmarkModal: React.FC<AddBookmarkModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const isFolder = editData?.type === 'folder';
-    if (title && (url || isFolder)) {
+    if (title && (url || isFolder || isDashboardWidget)) {
       let formattedUrl = url;
       if (url && !/^https?:\/\//i.test(url)) {
         formattedUrl = 'https://' + url;
@@ -157,6 +160,7 @@ const AddBookmarkModal: React.FC<AddBookmarkModalProps> = ({
         iconColor: iconType === 'lucide' ? iconColor : undefined,
         customIconUrl: iconType === 'custom' ? customIconUrl : undefined,
         isDashboardWidget,
+        useCoverIcon: editData?.type === 'folder' ? useCoverIcon : undefined,
       };
 
       if (editData) {
@@ -211,10 +215,11 @@ const AddBookmarkModal: React.FC<AddBookmarkModalProps> = ({
                       placeholder="Title"
                       value={title}
                       onChange={handleTitleChange}
+                      required
                       autoFocus
                     />
                   </div>
-                  {editData?.type !== 'folder' && (
+                  {editData?.type !== 'folder' && !isDashboardWidget && (
                     <div className="form-group" style={{ marginBottom: 0 }}>
                       <input
                         type="text"
@@ -222,6 +227,7 @@ const AddBookmarkModal: React.FC<AddBookmarkModalProps> = ({
                         placeholder="URL (e.g. google.com)"
                         value={url}
                         onChange={handleUrlChange}
+                        required
                       />
                     </div>
                   )}
@@ -271,6 +277,54 @@ const AddBookmarkModal: React.FC<AddBookmarkModalProps> = ({
                       Turn into Bookmark Dashboard
                     </label>
                   </div>
+                  {editData?.type === 'folder' && (
+                    <div 
+                      className="form-group" 
+                      style={{ 
+                        marginBottom: 0, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '10px',
+                        padding: '8px 12px',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        borderRadius: '12px',
+                        cursor: 'pointer',
+                        transition: 'background 0.2s'
+                      }}
+                      onClick={() => setUseCoverIcon(!useCoverIcon)}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+                    >
+                      <input
+                        type="checkbox"
+                        id="useCoverIcon"
+                        checked={useCoverIcon}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          setUseCoverIcon(e.target.checked);
+                        }}
+                        style={{ 
+                          width: '18px', 
+                          height: '18px', 
+                          cursor: 'pointer',
+                          accentColor: 'var(--accent-color)'
+                        }}
+                      />
+                      <label 
+                        htmlFor="useCoverIcon" 
+                        style={{ 
+                          fontSize: '14px', 
+                          cursor: 'pointer', 
+                          userSelect: 'none',
+                          color: 'white',
+                          fontWeight: 500,
+                          flexGrow: 1
+                        }}
+                      >
+                        Use Cover Icon
+                      </label>
+                    </div>
+                  )}
                 </div>
               </div>
 

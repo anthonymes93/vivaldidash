@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Plus, Play, Pause, ChevronLeft, ChevronRight, Image as ImageIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -62,6 +62,7 @@ interface Bookmark {
   iconColor?: string;
   customIconUrl?: string;
   isDashboardWidget?: boolean;
+  useCoverIcon?: boolean;
 }
 
 const PAGE_IDS = ['dashboard', 'calendar'];
@@ -108,7 +109,16 @@ function App() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedFolderId, setExpandedFolderId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; id: string } | null>(null);
-  const [selectedBookmarkIds, setSelectedBookmarkIds] = useState<string[]>([]);
+  const [selectedBookmarkIdsState, setSelectedBookmarkIdsState] = useState<string[]>([]);
+  const selectedBookmarkIdsRef = useRef<string[]>([]);
+  
+  const setSelectedBookmarkIds = useCallback((updater: React.SetStateAction<string[]>) => {
+    setSelectedBookmarkIdsState(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      selectedBookmarkIdsRef.current = next;
+      return next;
+    });
+  }, []);
   const [isLoading, setIsLoading] = useState(true);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [hoveredBookmark, setHoveredBookmark] = useState<{ 
@@ -365,6 +375,12 @@ function App() {
     if (parentId) {
       newBookmarkData.parentId = parentId;
     }
+
+    Object.keys(newBookmarkData).forEach(key => {
+      if (newBookmarkData[key] === undefined) {
+         delete newBookmarkData[key];
+      }
+    });
 
     await addDoc(collection(db, 'bookmarks'), newBookmarkData);
   };
@@ -897,7 +913,7 @@ function App() {
                                 folderChildren={bookmarks.filter(b => b.parentId === bookmark.id)}
                                 onContextMenu={handleContextMenu}
                                 onClick={handleBookmarkClick}
-                                isSelected={selectedBookmarkIds.includes(bookmark.id)}
+                                isSelected={selectedBookmarkIdsState.includes(bookmark.id)}
                                 onMouseEnter={() => setHoveredBookmark({ 
                                   id: bookmark.id, 
                                   title: bookmark.title, 
@@ -1171,7 +1187,7 @@ function App() {
           y={contextMenu.y}
           isOpen={!!contextMenu}
           isFolder={bookmarks.find(b => b.id === contextMenu.id)?.type === 'folder' || false}
-          hasSelection={selectedBookmarkIds.length > 0}
+          hasSelection={selectedBookmarkIdsState.length > 0}
           onClose={() => setContextMenu(null)}
           onRemove={() => deleteBookmark(contextMenu.id)}
           onEdit={() => handleEditRequest(contextMenu.id)}
@@ -1184,9 +1200,10 @@ function App() {
             );
           }}
           onAddSelectedToGroup={async () => {
-            if (selectedBookmarkIds.length > 0) {
+            const currentSelected = selectedBookmarkIdsRef.current;
+            if (currentSelected.length > 0) {
               const batch = writeBatch(db);
-              selectedBookmarkIds.forEach(id => {
+              currentSelected.forEach(id => {
                 batch.update(doc(db, 'bookmarks', id), { 
                   parentId: contextMenu.id, 
                   page: 'hidden' 
@@ -1210,6 +1227,33 @@ function App() {
             });
             batch.delete(doc(db, 'bookmarks', folderId));
             await batch.commit();
+          }}
+          onCreateGroupWithSelected={async () => {
+            const targetBookmark = bookmarks.find(b => b.id === contextMenu.id);
+            if (!targetBookmark) return;
+
+            const targetOrder = targetBookmark.order ?? 0;
+            const folderRef = await addDoc(collection(db, 'bookmarks'), {
+              title: 'Group', 
+              url: '', 
+              type: 'folder', 
+              order: targetOrder, 
+              page: activePage
+            });
+
+            const batch = writeBatch(db);
+            const currentSelected = selectedBookmarkIdsRef.current;
+            const idsToMove = Array.from(new Set([...currentSelected, contextMenu.id]));
+            
+            idsToMove.forEach(id => {
+              batch.update(doc(db, 'bookmarks', id), { 
+                parentId: folderRef.id, 
+                page: 'hidden' 
+              });
+            });
+            
+            await batch.commit();
+            setSelectedBookmarkIds([]);
           }}
         />
       )}

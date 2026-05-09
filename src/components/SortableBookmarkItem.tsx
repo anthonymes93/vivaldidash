@@ -19,6 +19,7 @@ interface Bookmark {
   iconColor?: string;
   customIconUrl?: string;
   isDashboardWidget?: boolean;
+  useCoverIcon?: boolean;
 }
 
 interface SortableBookmarkItemProps {
@@ -147,7 +148,7 @@ export function SortableBookmarkItem({
         }} />
       )}
 
-      {bookmark.type === 'folder' ? (
+      {bookmark.type === 'folder' && !bookmark.useCoverIcon ? (
         <FolderCard
           id={bookmark.id}
           title={bookmark.title}

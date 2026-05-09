@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trash2, Edit3, Maximize2, CheckSquare, FolderInput, Layers } from 'lucide-react';
+import { Trash2, Edit3, Maximize2, CheckSquare, FolderInput, Layers, FolderPlus } from 'lucide-react';
 
 interface ContextMenuProps {
   x: number;
@@ -15,6 +15,7 @@ interface ContextMenuProps {
   onSelectIcon: () => void;
   onAddSelectedToGroup: () => void;
   onBreakApartGroup: () => void;
+  onCreateGroupWithSelected: () => void;
 }
 
 const ContextMenu: React.FC<ContextMenuProps> = ({
@@ -30,6 +31,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
   onSelectIcon,
   onAddSelectedToGroup,
   onBreakApartGroup,
+  onCreateGroupWithSelected,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -86,6 +88,13 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
             <div className="context-menu-item" onClick={() => { onAddSelectedToGroup(); onClose(); }}>
               <FolderInput size={16} />
               <span>Add Selected to Group</span>
+            </div>
+          )}
+
+          {!isFolder && hasSelection && (
+            <div className="context-menu-item" onClick={() => { onCreateGroupWithSelected(); onClose(); }}>
+              <FolderPlus size={16} />
+              <span>Create Group with Selected</span>
             </div>
           )}
 
