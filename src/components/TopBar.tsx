@@ -317,67 +317,86 @@ const TopBar: React.FC<TopBarProps> = ({
         borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 24px',
         zIndex: 50,
         overflow: 'visible',
       }}
     >
-      {/* Left: Settings */}
-      <motion.button
-        whileHover={{ scale: 1.1, background: 'rgba(255, 255, 255, 0.1)' }}
-        whileTap={{ scale: 0.9 }}
-        onClick={onSettingsClick}
-        style={{
-          width: '40px',
-          height: '40px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderRadius: '12px',
-          background: 'rgba(255, 255, 255, 0.05)',
-          color: 'white',
-          border: 'none',
-          cursor: 'pointer',
-        }}
-      >
-        <SettingsIcon size={20} />
-      </motion.button>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        width: '100%',
+        height: '100%',
+        padding: window.innerWidth < 600 ? '0 12px' : '0 24px',
+        overflowX: window.innerWidth < 600 ? 'auto' : 'visible',
+        scrollbarWidth: 'none',
+        msOverflowStyle: 'none',
+        gap: '12px'
+      }} className="hide-scrollbar">
+        {/* Left: Settings */}
+        <motion.button
+          whileHover={{ scale: 1.1, background: 'rgba(255, 255, 255, 0.1)' }}
+          whileTap={{ scale: 0.9 }}
+          onClick={onSettingsClick}
+          style={{
+            width: '40px',
+            height: '40px',
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: '12px',
+            background: 'rgba(255, 255, 255, 0.05)',
+            color: 'white',
+            border: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          <SettingsIcon size={20} />
+        </motion.button>
 
-      {/* Center: Page tabs (droppable) */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
-        {PAGES.map((page) => (
-          <DroppableMenuItem
-            key={page.id}
-            page={page}
-            activePage={activePage}
-            onPageChange={onPageChange}
-            isDragging={isDragging}
-            onHover={setHoveredPageId}
-          />
-        ))}
+        {/* Center: Page tabs (droppable) */}
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '8px', 
+          position: 'relative',
+          flexShrink: 0 
+        }}>
+          {PAGES.map((page) => (
+            <DroppableMenuItem
+              key={page.id}
+              page={page}
+              activePage={activePage}
+              onPageChange={onPageChange}
+              isDragging={isDragging}
+              onHover={setHoveredPageId}
+            />
+          ))}
+        </div>
+
+        {/* Right: Add */}
+        <motion.button
+          whileHover={{ scale: 1.1, background: 'rgba(255, 255, 255, 0.1)' }}
+          whileTap={{ scale: 0.9 }}
+          onClick={onAddClick}
+          style={{
+            width: '40px',
+            height: '40px',
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: '12px',
+            background: 'rgba(255, 255, 255, 0.05)',
+            color: 'white',
+            border: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          <Plus size={24} />
+        </motion.button>
       </div>
-
-      {/* Right: Add */}
-      <motion.button
-        whileHover={{ scale: 1.1, background: 'rgba(255, 255, 255, 0.1)' }}
-        whileTap={{ scale: 0.9 }}
-        onClick={onAddClick}
-        style={{
-          width: '40px',
-          height: '40px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderRadius: '12px',
-          background: 'rgba(255, 255, 255, 0.05)',
-          color: 'white',
-          border: 'none',
-          cursor: 'pointer',
-        }}
-      >
-        <Plus size={24} />
-      </motion.button>
 
       <AnimatePresence>
         {showMegaMenu && <MegaMenu />}
