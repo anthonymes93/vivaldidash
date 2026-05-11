@@ -5,7 +5,6 @@ import {
   Calendar, 
   Settings as SettingsIcon, 
   PenTool, 
-  ChevronLeft,
   Sparkles,
   TrendingUp,
   Shield,
@@ -22,9 +21,6 @@ interface TopBarProps {
   activePage: string;
   onPageChange: (page: string) => void;
   isDragging: boolean;
-  expandedFolderId: string | null;
-  onBack: () => void;
-  folderTitle?: string;
 }
 
 const PAGES = [
@@ -300,9 +296,6 @@ const TopBar: React.FC<TopBarProps> = ({
   activePage,
   onPageChange,
   isDragging,
-  expandedFolderId,
-  onBack,
-  folderTitle,
 }) => {
   const [hoveredPageId, setHoveredPageId] = useState<string | null>(null);
   const showMegaMenu = hoveredPageId === 'dashboard' && !isDragging;
@@ -353,60 +346,16 @@ const TopBar: React.FC<TopBarProps> = ({
 
       {/* Center: Page tabs (droppable) */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
-        {expandedFolderId ? (
-          <motion.div
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            style={{ display: 'flex', alignItems: 'center', gap: '12px' }}
-          >
-            <motion.button
-              whileHover={{ x: -2, background: 'rgba(255, 255, 255, 0.1)' }}
-              whileTap={{ scale: 0.95 }}
-              onClick={onBack}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '6px 12px',
-                borderRadius: '10px',
-                background: 'rgba(255, 255, 255, 0.05)',
-                color: 'white',
-                fontSize: '14px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                border: 'none',
-              }}
-            >
-              <ChevronLeft size={18} />
-              Back
-            </motion.button>
-            <div style={{ 
-              height: '20px', 
-              width: '1px', 
-              background: 'rgba(255, 255, 255, 0.15)',
-              margin: '0 4px'
-            }} />
-            <span style={{ 
-              fontSize: '16px', 
-              fontWeight: 600, 
-              color: 'white',
-              letterSpacing: '0.5px'
-            }}>
-              {folderTitle}
-            </span>
-          </motion.div>
-        ) : (
-          PAGES.map((page) => (
-            <DroppableMenuItem
-              key={page.id}
-              page={page}
-              activePage={activePage}
-              onPageChange={onPageChange}
-              isDragging={isDragging}
-              onHover={setHoveredPageId}
-            />
-          ))
-        )}
+        {PAGES.map((page) => (
+          <DroppableMenuItem
+            key={page.id}
+            page={page}
+            activePage={activePage}
+            onPageChange={onPageChange}
+            isDragging={isDragging}
+            onHover={setHoveredPageId}
+          />
+        ))}
       </div>
 
       {/* Right: Add */}

@@ -3,14 +3,26 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { StickyNote, Save, Check, Star } from 'lucide-react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import BookmarkIcon from './BookmarkIcon';
+
+interface Bookmark {
+  title: string;
+  url: string;
+  iconType?: 'favicon' | 'lucide' | 'custom';
+  lucideIcon?: string;
+  iconColor?: string;
+  customIconUrl?: string;
+  useCoverIcon?: boolean;
+}
 
 interface GroupNotesProps {
   folderId: string;
   notes: string;
   onUpdate: (notes: string) => void;
+  folder?: Bookmark;
 }
 
-const GroupNotes: React.FC<GroupNotesProps> = ({ folderId, notes, onUpdate }) => {
+const GroupNotes: React.FC<GroupNotesProps> = ({ folderId, notes, onUpdate, folder }) => {
   const [localNotes, setLocalNotes] = useState(notes);
   const [isSaving, setIsSaving] = useState(false);
   const [showSaved, setShowSaved] = useState(false);
@@ -83,15 +95,32 @@ const GroupNotes: React.FC<GroupNotesProps> = ({ folderId, notes, onUpdate }) =>
         position: 'relative'
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <div style={{ 
-          padding: '10px', 
-          background: 'rgba(124, 77, 255, 0.15)', 
-          borderRadius: '12px',
-          color: '#7c4dff'
-        }}>
-          <StickyNote size={20} />
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        {folder?.useCoverIcon ? (
+          <BookmarkIcon 
+            title={folder.title || ''}
+            url={folder.url || ''}
+            iconType={folder.iconType}
+            lucideIcon={folder.lucideIcon}
+            iconColor={folder.iconColor}
+            customIconUrl={folder.customIconUrl}
+            size={80}
+          />
+        ) : (
+          <div style={{ 
+            padding: '10px', 
+            background: 'rgba(124, 77, 255, 0.15)', 
+            borderRadius: '12px',
+            color: '#7c4dff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '40px',
+            height: '40px'
+          }}>
+            <StickyNote size={20} />
+          </div>
+        )}
         <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600, color: 'white' }}>Group Notes</h3>
       </div>
 

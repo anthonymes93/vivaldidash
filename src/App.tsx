@@ -425,9 +425,9 @@ function App() {
       }
     });
 
-    await addDoc(collection(db, 'bookmarks'), newBookmarkData);
+    const docRef = await addDoc(collection(db, 'bookmarks'), newBookmarkData);
+    return docRef.id;
   };
-
   const editBookmark = async (id: string, title: string, url: string, iconProps?: any) => {
     const updateData: any = { title, url, ...iconProps };
     
@@ -820,12 +820,6 @@ function App() {
               setExpandedFolderId(null);
             }}
             isDragging={!!activeId}
-            expandedFolderId={expandedFolderId}
-            onBack={() => {
-              const currentFolder = bookmarks.find(b => b.id === expandedFolderId);
-              setExpandedFolderId(currentFolder?.parentId || null);
-            }}
-            folderTitle={bookmarks.find(b => b.id === expandedFolderId)?.title}
           />
         </motion.div>
 
@@ -946,9 +940,13 @@ function App() {
                   <WhiteboardView />
                 </ErrorBoundary>
               ) : activePage === 'calendar' ? (
-                <CalendarView />
+                <ErrorBoundary>
+                  <CalendarView />
+                </ErrorBoundary>
               ) : activePage === 'goal' ? (
-                <GoalView />
+                <ErrorBoundary>
+                  <GoalView />
+                </ErrorBoundary>
               ) : (
                 <div 
                   onClick={(e) => e.stopPropagation()}
@@ -1307,6 +1305,7 @@ function App() {
                         folderId={expandedFolderId} 
                         notes={bookmarks.find(b => b.id === expandedFolderId)?.notes || ''}
                         onUpdate={(notes) => updateNotes(expandedFolderId, notes)}
+                        folder={bookmarks.find(b => b.id === expandedFolderId)}
                       />
                     ) : (
                       <CalendarWidget hoveredBookmark={hoveredBookmark} />
@@ -1337,7 +1336,7 @@ function App() {
           style={{
             position: 'fixed',
             bottom: '24px',
-            left: '50%',
+            left: activePage === 'dashboard' ? 'calc(50% - 180px)' : '50%',
             transform: 'translateX(-50%)',
             display: 'flex',
             flexDirection: 'column',
@@ -1524,7 +1523,12 @@ function App() {
       <AddBookmarkModal
         isOpen={isModalOpen}
         onClose={() => { setIsModalOpen(false); setEditData(null); }}
-        onAdd={addBookmark}
+        onAdd={async (title, url, iconProps) => {
+          const newId = await addBookmark(title, url, iconProps);
+          if (iconProps?.type === 'folder') {
+            setExpandedFolderId(newId);
+          }
+        }}
         onEdit={editBookmark}
         editData={editData}
       />
