@@ -5,6 +5,7 @@ import {
   DndContext,
   closestCenter,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragOverlay,
@@ -308,7 +309,13 @@ function App() {
   };
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
+      },
+    })
   );
 
   useEffect(() => {
@@ -1149,7 +1156,7 @@ function App() {
                             keyboardSelectedId={keyboardSelectedId}
                             onContextMenu={handleContextMenu}
                             onBookmarkClick={handleBookmarkClick}
-                            onMouseEnter={(item) => setHoveredBookmark({ 
+                            onMouseEnter={(item) => !isMobile && setHoveredBookmark({ 
                               id: item.id, 
                               title: item.title, 
                               url: item.url,
@@ -1183,7 +1190,7 @@ function App() {
                             keyboardSelectedId={keyboardSelectedId}
                             onContextMenu={handleContextMenu}
                             onBookmarkClick={handleBookmarkClick}
-                            onMouseEnter={(item) => setHoveredBookmark({ 
+                            onMouseEnter={(item) => !isMobile && setHoveredBookmark({ 
                               id: item.id, 
                               title: item.title, 
                               url: item.url,
@@ -1217,7 +1224,7 @@ function App() {
                             keyboardSelectedId={keyboardSelectedId}
                             onContextMenu={handleContextMenu}
                             onBookmarkClick={handleBookmarkClick}
-                            onMouseEnter={(item) => setHoveredBookmark({ 
+                            onMouseEnter={(item) => !isMobile && setHoveredBookmark({ 
                               id: item.id, 
                               title: item.title, 
                               url: item.url,
@@ -1277,7 +1284,7 @@ function App() {
                                 onContextMenu={handleContextMenu}
                                 onClick={handleBookmarkClick}
                                 isSelected={selectedBookmarkIdsState.includes(bookmark.id) || keyboardSelectedId === bookmark.id}
-                                onMouseEnter={() => setHoveredBookmark({ 
+                                onMouseEnter={() => !isMobile && setHoveredBookmark({ 
                                   id: bookmark.id, 
                                   title: bookmark.title, 
                                   url: bookmark.url,
