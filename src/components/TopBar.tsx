@@ -61,7 +61,7 @@ function MegaMenu() {
         left: 0,
         right: 0,
         margin: '0 auto',
-        width: '900px',
+        width: 'min(900px, 92%)',
         background: 'rgba(8, 8, 12, 0.97)',
         backdropFilter: 'blur(48px)',
         borderRadius: '32px',
@@ -69,7 +69,7 @@ function MegaMenu() {
         boxShadow: '0 40px 100px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05)',
         padding: '40px',
         display: 'grid',
-        gridTemplateColumns: '1fr 1fr 1fr',
+        gridTemplateColumns: window.innerWidth < 768 ? '1fr' : '1fr 1fr 1fr',
         gap: '48px',
         zIndex: 100,
         pointerEvents: 'auto',
@@ -244,7 +244,7 @@ function DroppableMenuItem({
         }}
       >
         {page.icon}
-        <span>{page.name}</span>
+        {window.innerWidth > 600 && <span>{page.name}</span>}
 
         {/* Active underline */}
         {isActive && (

@@ -51,6 +51,7 @@ const Dock: React.FC<DockProps> = ({
       ref={setNodeRef}
       style={{
         display: 'flex',
+        flexWrap: window.innerWidth < 768 ? 'wrap' : 'nowrap',
         alignItems: 'center',
         gap: `${Math.max(4, itemSize / 4)}px`,
         padding: items.length > 0 ? '4px 0' : (isOver ? '20px 0' : '0'),
@@ -66,8 +67,8 @@ const Dock: React.FC<DockProps> = ({
         marginBottom: '4px',
         minHeight: '60px',
         justifyContent: items.length > 0 ? (align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center') : 'center',
-        width: width ? (typeof width === 'number' ? `${width}px` : width) : '100%',
-        maxWidth: '100%',
+        width: width ? (typeof width === 'number' ? `${width}px` : width) : 'auto',
+        maxWidth: window.innerWidth < 768 ? `${(3 * itemSize) + (2 * Math.max(4, itemSize / 4)) + 8}px` : '100%',
         margin: width ? '10px auto 4px auto' : '10px 0 4px 0',
         transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
       }}

@@ -292,9 +292,12 @@ const ExpandedView: React.FC<ExpandedViewProps> = ({ bookmark, onClose, onSaveNo
         style={{
           width: '900px',
           maxWidth: '95%',
-          height: '600px',
+          height: window.innerWidth < 768 ? 'auto' : '600px',
+          maxHeight: '95vh',
           display: 'flex',
+          flexDirection: window.innerWidth < 768 ? 'column' : 'row',
           overflow: 'hidden',
+          overflowY: 'auto',
           position: 'relative',
           boxShadow: '0 24px 80px rgba(0, 0, 0, 0.4)',
         }}
@@ -320,14 +323,15 @@ const ExpandedView: React.FC<ExpandedViewProps> = ({ bookmark, onClose, onSaveNo
 
         {/* Left Side: Icon and Info */}
         <div style={{
-          width: '35%',
+          width: window.innerWidth < 768 ? '100%' : '35%',
           background: 'rgba(255, 255, 255, 0.02)',
-          borderRight: '1px solid rgba(255, 255, 255, 0.05)',
+          borderRight: window.innerWidth < 768 ? 'none' : '1px solid rgba(255, 255, 255, 0.05)',
+          borderBottom: window.innerWidth < 768 ? '1px solid rgba(255, 255, 255, 0.05)' : 'none',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '40px',
+          padding: window.innerWidth < 768 ? '30px 20px' : '40px',
         }}>
           <motion.div
             layoutId={`icon-container-${bookmark.id}`}
@@ -390,7 +394,7 @@ const ExpandedView: React.FC<ExpandedViewProps> = ({ bookmark, onClose, onSaveNo
           transition={{ delay: 0.25 }}
           style={{
             flex: 1,
-            padding: '40px',
+            padding: window.innerWidth < 768 ? '24px' : '40px',
             display: 'flex',
             flexDirection: 'column',
           }}

@@ -156,6 +156,7 @@ function App() {
     priorityText?: string;
   } | null>(null);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const isMobile = windowWidth < 768;
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingTitleValue, setEditingTitleValue] = useState('');
   const [isEditingDesc, setIsEditingDesc] = useState(false);
@@ -698,6 +699,11 @@ function App() {
   // Dynamic icon sizing for docks - based on TOTAL icons across all sections
   const totalDockIcons = dockBookmarks.length + dockCenterBookmarks.length + dockRightBookmarks.length;
   const calculateDockItemSize = (count: number) => {
+    if (isMobile) {
+      if (count <= 8) return 48;
+      if (count <= 16) return 36;
+      return 28;
+    }
     if (count <= 6) return 56;
     if (count <= 12) return 42;
     if (count <= 18) return 32;
@@ -770,16 +776,18 @@ function App() {
   const totalItems = rootBookmarks.length + 1; // +1 for the 'Add' button
 
   // Balanced grid math: try to make the grid roughly square-ish based on available space
-  const calendarWidth = activePage === 'dashboard' ? 320 : 0;
-  const layoutPaddingX = 160;
-  const layoutPaddingY = 300;
+  const calendarWidth = (activePage === 'dashboard' && !isMobile) ? 320 : 0;
+  const layoutPaddingX = isMobile ? 32 : 160;
+  const layoutPaddingY = isMobile ? 200 : 300;
   const availW = windowWidth - calendarWidth - layoutPaddingX;
   const availH = window.innerHeight - layoutPaddingY;
   const containerAspect = availW / availH;
   
   // Calculate columns to match the screen's aspect ratio
   let dynamicCols = Math.ceil(Math.sqrt(totalItems * containerAspect));
-  dynamicCols = Math.max(6, Math.min(12, dynamicCols));
+  dynamicCols = isMobile 
+    ? 4 
+    : Math.max(6, Math.min(12, dynamicCols));
   const dynamicRows = Math.ceil(totalItems / dynamicCols);
 
   const gap = 24;
@@ -956,11 +964,12 @@ function App() {
                   onClick={(e) => e.stopPropagation()}
                   style={{
                     display: 'flex',
-                    gap: '40px',
+                    flexDirection: isMobile ? 'column' : 'row',
+                    gap: isMobile ? '20px' : '40px',
                     width: '100%',
                     maxWidth: '1600px',
                     justifyContent: 'center',
-                    padding: '0 40px',
+                    padding: isMobile ? '0 16px' : '0 40px',
                   }}>
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <SearchBar preview={hoveredBookmark} />
@@ -1123,6 +1132,8 @@ function App() {
                     ) : (
                       <div style={{ 
                         display: 'flex', 
+                        flexWrap: isMobile ? 'wrap' : 'nowrap',
+                        justifyContent: 'center', 
                         gap: `${Math.max(4, dockItemSize / 4)}px`, 
                         width: '100%', 
                         maxWidth: `${dynamicCols * iconSize + (dynamicCols - 1) * gap}px`,
@@ -1154,13 +1165,15 @@ function App() {
                           />
                         </div>
 
-                        <div style={{ 
-                          width: '1px', 
-                          height: '24px', 
-                          background: 'rgba(255,255,255,0.2)',
-                          margin: '0 12px',
-                          alignSelf: 'center'
-                        }} />
+                        {!isMobile && (
+                          <div style={{ 
+                            width: '1px', 
+                            height: '24px', 
+                            background: 'rgba(255,255,255,0.2)',
+                            margin: '0 12px',
+                            alignSelf: 'center'
+                          }} />
+                        )}
 
                         <div style={{ flex: 1 }}>
                           <Dock 
@@ -1186,13 +1199,15 @@ function App() {
                           />
                         </div>
 
-                        <div style={{ 
-                          width: '1px', 
-                          height: '24px', 
-                          background: 'rgba(255,255,255,0.2)',
-                          margin: '0 12px',
-                          alignSelf: 'center'
-                        }} />
+                        {!isMobile && (
+                          <div style={{ 
+                            width: '1px', 
+                            height: '24px', 
+                            background: 'rgba(255,255,255,0.2)',
+                            margin: '0 12px',
+                            alignSelf: 'center'
+                          }} />
+                        )}
 
                         <div style={{ flex: 1 }}>
                           <Dock 
@@ -1303,7 +1318,12 @@ function App() {
                     )}
                   </div>
                   
-                  <div style={{ flexShrink: 0, marginTop: '20px' }}>
+                  <div style={{ 
+                    flexShrink: 0, 
+                    marginTop: isMobile ? '40px' : '20px',
+                    display: 'block',
+                    width: isMobile ? '100%' : 'auto'
+                  }}>
                     {expandedFolderId ? (
                       <GroupNotes 
                         folderId={expandedFolderId} 

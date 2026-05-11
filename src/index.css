@@ -188,3 +188,59 @@ button {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
 }
+
+/* Mobile Optimization */
+@media (max-width: 768px) {
+  :root {
+    --layout-padding: 16px;
+  }
+
+  .search-container {
+    width: 92% !important;
+    margin-bottom: 3vh !important;
+    padding: 6px 12px !important;
+  }
+
+  .search-container input {
+    font-size: 16px !important;
+    padding: 8px 12px !important;
+  }
+
+  .glass-card {
+    border-radius: 12px !important;
+  }
+
+  .context-menu {
+    width: 160px !important;
+  }
+
+  /* Adjust spacing for mobile dashboard */
+  #bottom-pill {
+    width: 90% !important;
+    bottom: 16px !important;
+    padding: 4px !important;
+  }
+
+  /* Responsive font sizes */
+  h1, h2 {
+    font-size: 1.5rem !important;
+  }
+
+  /* Dock scrolling on mobile */
+  [id^="dock_"], #dock {
+    overflow-x: auto !important;
+    justify-content: flex-start !important;
+    padding: 8px 16px !important;
+    scrollbar-width: none; /* Hide scrollbar for clean look */
+  }
+  
+  [id^="dock_"]::-webkit-scrollbar, #dock::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .search-container {
+    padding: 4px 8px !important;
+  }
+}
