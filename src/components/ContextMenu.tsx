@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trash2, Edit3, Maximize2, CheckSquare, FolderInput, Layers, FolderPlus, StickyNote, ArrowUp } from 'lucide-react';
+import { Trash2, Edit3, Maximize2, CheckSquare, FolderInput, Layers, FolderPlus, StickyNote, ArrowUp, ExternalLink } from 'lucide-react';
 
 interface ContextMenuProps {
   x: number;
@@ -17,6 +17,7 @@ interface ContextMenuProps {
   onBreakApartGroup: () => void;
   onCreateGroupWithSelected: () => void;
   onOpenNotes: () => void;
+  onOpenLink: () => void;
   onMoveUp?: () => void;
   hasParent?: boolean;
 }
@@ -36,6 +37,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
   onBreakApartGroup,
   onCreateGroupWithSelected,
   onOpenNotes,
+  onOpenLink,
   onMoveUp,
   hasParent,
 }) => {
@@ -74,6 +76,12 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
           }}
           className="glass"
         >
+          {!isFolder && (
+            <div className="context-menu-item" onClick={() => { onOpenLink(); onClose(); }}>
+              <ExternalLink size={16} />
+              <span>Open Link</span>
+            </div>
+          )}
           <div className="context-menu-item" onClick={() => { onExpand(); onClose(); }}>
             <Maximize2 size={16} />
             <span>Expand Widget</span>

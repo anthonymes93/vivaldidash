@@ -14,6 +14,7 @@ interface Bookmark {
   isDashboardWidget?: boolean;
   type?: 'bookmark' | 'folder';
   useCoverIcon?: boolean;
+  isFullCover?: boolean;
 }
 
 interface AddBookmarkModalProps {
@@ -51,6 +52,7 @@ const AddBookmarkModal: React.FC<AddBookmarkModalProps> = ({
   const [customIconUrl, setCustomIconUrl] = useState('');
   const [isDashboardWidget, setIsDashboardWidget] = useState(false);
   const [useCoverIcon, setUseCoverIcon] = useState(false);
+  const [isFullCover, setIsFullCover] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -66,6 +68,7 @@ const AddBookmarkModal: React.FC<AddBookmarkModalProps> = ({
       setCustomIconUrl(editData.customIconUrl || '');
       setIsDashboardWidget(editData.isDashboardWidget || false);
       setUseCoverIcon(editData.useCoverIcon || false);
+      setIsFullCover(editData.isFullCover || false);
     } else {
       setTitle('');
       setUrl('');
@@ -77,6 +80,7 @@ const AddBookmarkModal: React.FC<AddBookmarkModalProps> = ({
       setCustomIconUrl('');
       setIsDashboardWidget(false);
       setUseCoverIcon(false);
+      setIsFullCover(false);
     }
   }, [editData, isOpen]);
 
@@ -119,7 +123,7 @@ const AddBookmarkModal: React.FC<AddBookmarkModalProps> = ({
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_SIZE = 64;
+        const MAX_SIZE = 512;
         let width = img.width;
         let height = img.height;
 
@@ -166,6 +170,7 @@ const AddBookmarkModal: React.FC<AddBookmarkModalProps> = ({
         customIconUrl: iconType === 'custom' ? customIconUrl : undefined,
         isDashboardWidget,
         useCoverIcon: isFolder ? useCoverIcon : undefined,
+        isFullCover: isFolder ? isFullCover : undefined,
         type: bookmarkType,
       };
 
@@ -351,6 +356,55 @@ const AddBookmarkModal: React.FC<AddBookmarkModalProps> = ({
                         }}
                       >
                         Use Cover Icon
+                      </label>
+                    </div>
+                  )}
+                  {bookmarkType === 'folder' && useCoverIcon && (
+                    <div 
+                      className="form-group" 
+                      style={{ 
+                        marginBottom: 0, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '10px',
+                        padding: '8px 12px',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        borderRadius: '12px',
+                        cursor: 'pointer',
+                        transition: 'background 0.2s',
+                        marginTop: '8px'
+                      }}
+                      onClick={() => setIsFullCover(!isFullCover)}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+                    >
+                      <input
+                        type="checkbox"
+                        id="isFullCover"
+                        checked={isFullCover}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          setIsFullCover(e.target.checked);
+                        }}
+                        style={{ 
+                          width: '18px', 
+                          height: '18px', 
+                          cursor: 'pointer',
+                          accentColor: 'var(--accent-color)'
+                        }}
+                      />
+                      <label 
+                        htmlFor="isFullCover" 
+                        style={{ 
+                          fontSize: '14px', 
+                          cursor: 'pointer', 
+                          userSelect: 'none',
+                          color: 'white',
+                          fontWeight: 500,
+                          flexGrow: 1
+                        }}
+                      >
+                        Full Cover Image (Hide Title)
                       </label>
                     </div>
                   )}

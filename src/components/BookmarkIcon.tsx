@@ -47,8 +47,8 @@ const BookmarkIcon: React.FC<BookmarkIconProps> = ({
   if (iconType === 'custom' && customIconUrl) {
     return (
       <div style={{
-        width: noBackground ? '100%' : `${size}px`,
-        height: noBackground ? '100%' : `${size}px`,
+        width: `${size}px`,
+        height: `${size}px`,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -59,7 +59,7 @@ const BookmarkIcon: React.FC<BookmarkIconProps> = ({
         <img
           src={customIconUrl}
           alt={title}
-          style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '4px' }}
+          style={{ width: '100%', height: '100%', objectFit: noBackground ? 'cover' : 'contain', borderRadius: noBackground ? '0' : '4px' }}
         />
       </div>
     );
@@ -78,8 +78,8 @@ const BookmarkIcon: React.FC<BookmarkIconProps> = ({
 
   return (
     <div style={{
-      width: noBackground ? '100%' : `${size}px`,
-      height: noBackground ? '100%' : `${size}px`,
+      width: `${size}px`,
+      height: `${size}px`,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',

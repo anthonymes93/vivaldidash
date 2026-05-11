@@ -21,6 +21,7 @@ interface Bookmark {
   priorityText?: string;
   isDashboardWidget?: boolean;
   useCoverIcon?: boolean;
+  isFullCover?: boolean;
 }
 
 interface SortableBookmarkItemProps {
@@ -162,6 +163,7 @@ export function SortableBookmarkItem({
       ) : (
         <BookmarkCard
           {...bookmark}
+          isFullCover={bookmark.isFullCover}
           onClick={(e) => onClick(bookmark.id, e)}
           onContextMenu={onContextMenu}
           size={size}

@@ -194,7 +194,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ preview }) => {
             initial={{ opacity: 0, scale: 0.5, rotate: -20 }}
             animate={{ opacity: 1, scale: 1, rotate: 0 }}
             exit={{ opacity: 0, scale: 0.5 }}
-            style={{ display: 'flex', alignItems: 'center', marginRight: '8px' }}
+            style={{ display: 'flex', alignItems: 'center', marginRight: '12px' }}
           >
             <BookmarkIcon 
               title={preview.title}
@@ -203,7 +203,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ preview }) => {
               lucideIcon={preview.lucideIcon}
               iconColor={preview.iconColor}
               customIconUrl={preview.customIconUrl}
-              size={24}
+              size={48}
               noBackground={true}
             />
           </motion.div>

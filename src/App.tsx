@@ -65,6 +65,7 @@ interface Bookmark {
   customIconUrl?: string;
   isDashboardWidget?: boolean;
   useCoverIcon?: boolean;
+  isFullCover?: boolean;
   workspaceId?: string;
   priorityText?: string;
   description?: string;
@@ -669,7 +670,10 @@ function App() {
       setLastSelectedId(null);
     }
 
-    if (bookmark.type === 'folder') setExpandedFolderId(id);
+    if (bookmark.type === 'folder') {
+      setExpandedFolderId(id);
+      setHoveredBookmark(null);
+    }
     else if (bookmark.isDashboardWidget) setExpandedId(id);
     else if (e?.shiftKey) setExpandedId(id); // Allow shift+click to open notes for any icon
     else window.location.href = bookmark.url;
@@ -1566,6 +1570,13 @@ function App() {
             );
           }}
           onOpenNotes={() => setExpandedId(contextMenu.id)}
+          onOpenLink={() => {
+            const bookmark = bookmarks.find(b => b.id === contextMenu.id);
+            if (bookmark && bookmark.url) {
+              const url = bookmark.url.startsWith('http') ? bookmark.url : `https://${bookmark.url}`;
+              window.open(url, '_blank');
+            }
+          }}
           hasParent={!!bookmarks.find(b => b.id === contextMenu.id)?.parentId}
           onMoveUp={async () => {
             const id = contextMenu.id;

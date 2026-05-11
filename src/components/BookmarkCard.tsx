@@ -17,11 +17,12 @@ interface BookmarkCardProps {
   iconColor?: string;
   customIconUrl?: string;
   isDashboardWidget?: boolean;
+  isFullCover?: boolean;
 }
 
 const BookmarkCard: React.FC<BookmarkCardProps> = ({ 
   id, title, url, onContextMenu, onClick, size = 120, hideTitle = false, noBackground = false,
-  iconType, lucideIcon, iconColor, customIconUrl, isDashboardWidget 
+  iconType, lucideIcon, iconColor, customIconUrl, isDashboardWidget, isFullCover 
 }) => {
   const scale = size / 120;
 
@@ -30,8 +31,8 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({
       layoutId={`card-${id}`}
       transition={{ type: 'spring', damping: 20, stiffness: 200 }}
       whileHover={{ 
-        y: noBackground ? -15 : -5, 
-        scale: noBackground ? 1.4 : 1.1,
+        y: (noBackground || isFullCover) ? -15 : -5, 
+        scale: (noBackground || isFullCover) ? 1.4 : 1.1,
         zIndex: 100 
       }}
       className={noBackground ? "" : "glass-card bookmark-card"}
@@ -43,11 +44,13 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: noBackground ? '0' : `${16 * scale}px`,
+        padding: (noBackground || isFullCover) ? '0' : `${16 * scale}px`,
         cursor: 'pointer',
         background: noBackground ? 'transparent' : undefined,
-        border: noBackground ? 'none' : undefined,
-        backdropFilter: noBackground ? 'none' : undefined,
+        border: (noBackground || isFullCover) ? 'none' : undefined,
+        backdropFilter: (noBackground || isFullCover) ? 'none' : undefined,
+        overflow: 'hidden',
+        borderRadius: `${24 * scale}px`,
       }}
       onClick={(e) => onClick(e)}
       onContextMenu={(e) => onContextMenu(e, id)}
@@ -67,14 +70,14 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({
         layoutId={`icon-container-${id}`}
         transition={{ type: 'spring', damping: 25, stiffness: 150 }}
         style={{
-          width: noBackground ? '100%' : `${48 * scale}px`,
-          height: noBackground ? '100%' : `${48 * scale}px`,
-          marginBottom: (hideTitle || noBackground) ? 0 : `${12 * scale}px`,
+          width: (noBackground || isFullCover) ? '100%' : `${48 * scale}px`,
+          height: (noBackground || isFullCover) ? '100%' : `${48 * scale}px`,
+          marginBottom: (hideTitle || noBackground || isFullCover) ? 0 : `${12 * scale}px`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: noBackground ? 'transparent' : 'rgba(255, 255, 255, 0.05)',
-          borderRadius: `${12 * scale}px`,
+          background: (noBackground || isFullCover) ? 'transparent' : 'rgba(255, 255, 255, 0.05)',
+          borderRadius: isFullCover ? '0' : `${12 * scale}px`,
         }}
       >
         <BookmarkIcon 
@@ -84,21 +87,18 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({
           lucideIcon={lucideIcon}
           iconColor={iconColor}
           customIconUrl={customIconUrl}
-          size={noBackground ? size : 48 * scale}
+          size={(noBackground || isFullCover) ? size : 48 * scale}
           noBackground={true}
         />
       </motion.div>
  
-      {!hideTitle && (
+      {!hideTitle && !isFullCover && (
         <span
           style={{
             fontSize: `${13 * scale}px`,
             fontWeight: 400,
             textAlign: 'center',
             width: '100%',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
             color: 'rgba(255, 255, 255, 0.8)',
           }}
         >

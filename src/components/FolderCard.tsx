@@ -116,9 +116,6 @@ const FolderCard: React.FC<FolderCardProps> = ({ id, title, children, onContextM
             fontWeight: 500,
             textAlign: 'center',
             width: '100%',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
             color: 'rgba(255, 255, 255, 0.8)',
             padding: `0 ${8 * scale}px`,
           }}
