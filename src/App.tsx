@@ -944,13 +944,15 @@ function App() {
               transition={{ duration: 0.5 }}
               style={{
                 width: '100%',
-                height: '100vh',
+                minHeight: '100vh',
+                height: 'auto',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 paddingTop: activePage === 'whiteboard' ? '0' : '15vh',
                 paddingBottom: activePage === 'whiteboard' ? '0' : '100px',
                 overflowY: activePage === 'whiteboard' ? 'hidden' : 'auto',
+                overflowX: 'hidden',
                 zIndex: 1,
               }}
             >
