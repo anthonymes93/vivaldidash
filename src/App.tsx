@@ -146,6 +146,7 @@ function App() {
       return next;
     });
   }, []);
+  const [nestingGroupId, setNestingGroupId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [hoveredBookmark, setHoveredBookmark] = useState<{
@@ -429,6 +430,7 @@ function App() {
         if (data.expandedFolderId !== undefined) setExpandedFolderId(data.expandedFolderId);
         if (data.activeWidgetTab) setActiveWidgetTab(data.activeWidgetTab);
         if (data.isWidgetCollapsed !== undefined) setIsWidgetCollapsed(data.isWidgetCollapsed);
+        if (data.nestingGroupId !== undefined) setNestingGroupId(data.nestingGroupId);
 
         // Sync Widget Pause Timer
         if (data.widgetPauseUntil) {
@@ -684,32 +686,7 @@ function App() {
 
     if (draggedBookmarkId === overId) return;
 
-    let isDropOnCenter = false;
-    if (overBookmark && !PAGE_IDS.includes(overId)) {
-      const activeRect = active.rect.current?.translated;
-      const overRect = over?.rect;
-      if (activeRect && overRect) {
-        const activeCenter = { x: activeRect.left + activeRect.width / 2, y: activeRect.top + activeRect.height / 2 };
-        const overCenter = { x: overRect.left + overRect.width / 2, y: overRect.top + overRect.height / 2 };
-        const distance = Math.sqrt(Math.pow(activeCenter.x - overCenter.x, 2) + Math.pow(activeCenter.y - overCenter.y, 2));
-        isDropOnCenter = distance < 45;
-      }
-    }
 
-    if (isDropOnCenter && overBookmark) {
-      if (overBookmark.type === 'folder') {
-        await updateDoc(doc(db, 'bookmarks', draggedBookmarkId), { parentId: overBookmark.id, page: 'hidden' });
-      } else if (overBookmark.parentId) {
-        await updateDoc(doc(db, 'bookmarks', draggedBookmarkId), { parentId: overBookmark.parentId, page: 'hidden' });
-      } else {
-        const folderRef = await addDoc(collection(db, 'bookmarks'), {
-          title: 'Group', url: '', type: 'folder', order: overBookmark.order ?? 0, page: activePage, workspaceId: activeWorkspaceId
-        });
-        await updateDoc(doc(db, 'bookmarks', overBookmark.id), { parentId: folderRef.id, page: 'hidden' });
-        await updateDoc(doc(db, 'bookmarks', draggedBookmarkId), { parentId: folderRef.id, page: 'hidden' });
-      }
-      return;
-    }
 
     const pageBookmarks = bookmarks.filter(b => (b.page || 'dashboard') === activePage && !b.parentId);
     const oldIndex = pageBookmarks.findIndex(b => b.id === draggedBookmarkId);
@@ -768,7 +745,7 @@ function App() {
     }
 
     if (bookmark.type === 'folder') {
-      setExpandedFolderId(id);
+      updateDashboard({ expandedFolderId: id });
       setHoveredBookmark(null);
     }
     else if (bookmark.isDashboardWidget) setExpandedId(id);
@@ -1621,9 +1598,9 @@ function App() {
         </motion.div>
       </div>
 
-      <DragOverlay dropAnimation={{ duration: 250, easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)' }}>
+      <DragOverlay dropAnimation={{ duration: 200, easing: 'ease-out' }}>
         {activeBookmark ? (
-          <div style={{ cursor: 'grabbing', transform: 'scale(1.08) rotate(2deg)', filter: 'drop-shadow(0 24px 48px rgba(0,0,0,0.7)) drop-shadow(0 0 24px rgba(124,77,255,0.5))' }}>
+          <div style={{ cursor: 'grabbing', transform: 'scale(1.02)', filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.3))' }}>
             {activeBookmark.type === 'folder' ? (
               <FolderCard id={activeBookmark.id} title={activeBookmark.title} children={bookmarks.filter(b => b.parentId === activeBookmark.id)} onContextMenu={() => { }} onClick={() => { }} />
             ) : (
@@ -1772,6 +1749,17 @@ function App() {
               setSelectedBookmarkIds([]);
             }
           }}
+          onSelectGroup={() => updateDashboard({ nestingGroupId: contextMenu.id })}
+          onAddSelectedGroupToGroup={async () => {
+            if (nestingGroupId && nestingGroupId !== contextMenu.id) {
+              await updateDoc(doc(db, 'bookmarks', nestingGroupId), {
+                parentId: contextMenu.id,
+                page: 'hidden'
+              });
+              updateDashboard({ nestingGroupId: null });
+            }
+          }}
+          selectedGroupName={nestingGroupId ? bookmarks.find(b => b.id === nestingGroupId)?.title : null}
           onBreakApartGroup={async () => {
             const folderId = contextMenu.id;
             const children = bookmarks.filter(b => b.parentId === folderId);

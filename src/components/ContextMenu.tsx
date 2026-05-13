@@ -20,6 +20,9 @@ interface ContextMenuProps {
   onOpenLink: () => void;
   onMoveUp?: () => void;
   hasParent?: boolean;
+  onSelectGroup?: () => void;
+  onAddSelectedGroupToGroup?: () => void;
+  selectedGroupName?: string | null;
 }
 
 const ContextMenu: React.FC<ContextMenuProps> = ({
@@ -40,6 +43,9 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
   onOpenLink,
   onMoveUp,
   hasParent,
+  onSelectGroup,
+  onAddSelectedGroupToGroup,
+  selectedGroupName,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -120,6 +126,20 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
             <div className="context-menu-item" onClick={() => { onCreateGroupWithSelected(); onClose(); }}>
               <FolderPlus size={16} />
               <span>Create Group with Selected</span>
+            </div>
+          )}
+
+          {isFolder && (
+            <div className="context-menu-item" onClick={() => { onSelectGroup?.(); onClose(); }}>
+              <CheckSquare size={16} />
+              <span>Select Group</span>
+            </div>
+          )}
+
+          {isFolder && selectedGroupName && (
+            <div className="context-menu-item" onClick={() => { onAddSelectedGroupToGroup?.(); onClose(); }}>
+              <FolderInput size={16} />
+              <span>Add {selectedGroupName} to this Group</span>
             </div>
           )}
 
