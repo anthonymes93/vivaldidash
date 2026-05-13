@@ -126,13 +126,15 @@ function App() {
 
   // Workspaces state
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>(() => {
-    return localStorage.getItem('vivaldidash_workspace') || 'default';
-  });
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>('default');
 
-  useEffect(() => {
-    localStorage.setItem('vivaldidash_workspace', activeWorkspaceId);
-  }, [activeWorkspaceId]);
+  const updateDashboard = async (updates: any) => {
+    try {
+      await updateDoc(doc(db, 'settings', 'dashboard'), updates);
+    } catch (e) {
+      console.error("Error updating dashboard state:", e);
+    }
+  };
 
   const [selectedBookmarkIdsState, setSelectedBookmarkIdsState] = useState<string[]>([]);
   const selectedBookmarkIdsRef = useRef<string[]>([]);
@@ -192,11 +194,10 @@ function App() {
 
   const toggleWidgetPause = useCallback(() => {
     if (isWidgetPaused) {
-      setIsWidgetPaused(false);
-      setWidgetPauseSecondsLeft(0);
+      updateDashboard({ isWidgetPaused: false, widgetPauseUntil: 0 });
     } else {
-      setIsWidgetPaused(true);
-      setWidgetPauseSecondsLeft(widgetPauseMins * 60);
+      const until = Date.now() + (widgetPauseMins * 60 * 1000);
+      updateDashboard({ isWidgetPaused: true, widgetPauseUntil: until });
     }
   }, [isWidgetPaused, widgetPauseMins]);
 
@@ -283,7 +284,7 @@ function App() {
   const handleBgClick = () => {
     // Only toggle if we're not in a modal or settings
     if (!isModalOpen && !isSettingsOpen && !expandedId && !expandedFolderId) {
-      setIsZenMode(prev => !prev);
+      updateDashboard({ isZenMode: !isZenMode });
       setContextMenu(null);
     }
   };
@@ -325,8 +326,14 @@ function App() {
     };
   }, [hoveredBookmark]);
 
-  const nextBg = () => setBgIndex(prev => (prev + 1) % backgrounds.length);
-  const prevBg = () => setBgIndex(prev => (prev - 1 + backgrounds.length) % backgrounds.length);
+  const nextBg = () => {
+    const nextIdx = (bgIndex + 1) % backgrounds.length;
+    updateDashboard({ bgIndex: nextIdx });
+  };
+  const prevBg = () => {
+    const prevIdx = (bgIndex - 1 + backgrounds.length) % backgrounds.length;
+    updateDashboard({ bgIndex: prevIdx });
+  };
 
   const deleteBackground = async (index: number) => {
     if (backgrounds.length <= 1) return; // Prevent deleting the last background
@@ -410,6 +417,29 @@ function App() {
         if (data.goalMarqueeInterval) setGoalMarqueeInterval(data.goalMarqueeInterval);
         if (data.goalMarqueeRepeatCount !== undefined) setGoalMarqueeRepeatCount(data.goalMarqueeRepeatCount);
         if (data.widgetPauseMins) setWidgetPauseMins(data.widgetPauseMins);
+        
+        // Sync Live State
+        if (data.activePage) setActivePage(data.activePage);
+        if (data.activeWorkspaceId) setActiveWorkspaceId(data.activeWorkspaceId);
+        if (data.bgIndex !== undefined) setBgIndex(data.bgIndex);
+        if (data.isPaused !== undefined) setIsPaused(data.isPaused);
+        if (data.isZenMode !== undefined) setIsZenMode(data.isZenMode);
+        if (data.expandedFolderId !== undefined) setExpandedFolderId(data.expandedFolderId);
+
+        // Sync Widget Pause Timer
+        if (data.widgetPauseUntil) {
+          const remaining = Math.max(0, Math.floor((data.widgetPauseUntil - Date.now()) / 1000));
+          if (remaining > 0) {
+            setIsWidgetPaused(true);
+            setWidgetPauseSecondsLeft(remaining);
+          } else {
+            setIsWidgetPaused(false);
+            setWidgetPauseSecondsLeft(0);
+          }
+        } else if (data.isWidgetPaused !== undefined) {
+          setIsWidgetPaused(data.isWidgetPaused);
+          if (!data.isWidgetPaused) setWidgetPauseSecondsLeft(0);
+        }
       }
     });
 
@@ -890,8 +920,7 @@ function App() {
             onSettingsClick={() => setIsSettingsOpen(true)}
             activePage={activePage}
             onPageChange={(page) => {
-              setActivePage(page);
-              setExpandedFolderId(null);
+              updateDashboard({ activePage: page, expandedFolderId: null });
             }}
             isDragging={!!activeId}
           />
@@ -1068,7 +1097,7 @@ function App() {
                           whileTap={{ scale: 0.9 }}
                           onClick={() => {
                             const currentFolder = bookmarks.find(b => b.id === expandedFolderId);
-                            setExpandedFolderId(currentFolder?.parentId || null);
+                            updateDashboard({ expandedFolderId: currentFolder?.parentId || null });
                           }}
                           style={{
                             display: 'flex',
@@ -1412,8 +1441,7 @@ function App() {
                         pauseSecondsLeft={widgetPauseSecondsLeft}
                         onPauseToggle={toggleWidgetPause}
                         onCancelPause={() => {
-                          setIsWidgetPaused(false);
-                          setWidgetPauseSecondsLeft(0);
+                          updateDashboard({ isWidgetPaused: false, widgetPauseUntil: 0 });
                         }}
                       />
                     )}
@@ -1473,7 +1501,7 @@ function App() {
             <motion.button
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
-              onClick={() => setIsPaused(!isPaused)}
+              onClick={() => updateDashboard({ isPaused: !isPaused })}
               className="control-btn"
               style={{ color: 'white', cursor: 'pointer', padding: '10px' }}
             >
@@ -1616,7 +1644,7 @@ function App() {
         onClose={() => setIsBgModalOpen(false)}
         backgrounds={backgrounds}
         currentIndex={bgIndex}
-        onSelect={(index) => setBgIndex(index)}
+        onSelect={(index) => updateDashboard({ bgIndex: index })}
         onHover={(index) => setPreviewBgIndex(index)}
         onDelete={deleteBackground}
         onAdd={addBackground}
@@ -1633,7 +1661,7 @@ function App() {
         onAdd={async (title, url, iconProps) => {
           const newId = await addBookmark(title, url, iconProps);
           if (iconProps?.type === 'folder') {
-            setExpandedFolderId(newId);
+            updateDashboard({ expandedFolderId: newId });
           }
         }}
         onEdit={editBookmark}
@@ -1670,7 +1698,7 @@ function App() {
         }}
         workspaces={workspaces}
         activeWorkspaceId={activeWorkspaceId}
-        onWorkspaceChange={setActiveWorkspaceId}
+        onWorkspaceChange={(id) => updateDashboard({ activeWorkspaceId: id })}
         onCreateWorkspace={async (name) => {
           const docRef = await addDoc(collection(db, 'workspaces'), { name });
           setActiveWorkspaceId(docRef.id);
