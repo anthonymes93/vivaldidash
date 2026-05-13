@@ -10,9 +10,8 @@ import {
   useSensors,
   DragOverlay,
   useDroppable,
-  type DragEndEvent,
-  type DragStartEvent,
 } from '@dnd-kit/core';
+import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import {
   arrayMove,
   SortableContext,
@@ -44,6 +43,7 @@ import CalendarView from './components/CalendarView';
 import CalendarWidget from './components/CalendarWidget';
 import GoalView from './components/GoalView';
 import FolderCard from './components/FolderCard';
+import HabitsView from './components/HabitsView';
 
 import BackgroundSelectorModal from './components/BackgroundSelectorModal';
 import Dock from './components/Dock';
@@ -158,10 +158,47 @@ function App() {
   } | null>(null);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const isMobile = windowWidth < 768;
+
+  const [goals, setGoals] = useState<any[]>([]);
+  const [currentGoalIndex, setCurrentGoalIndex] = useState(0);
+  const [showGoalMarquee, setShowGoalMarquee] = useState(false);
+  const [goalMarqueeInterval, setGoalMarqueeInterval] = useState(30); // Default 30s
+  const [goalMarqueeRepeatCount, setGoalMarqueeRepeatCount] = useState(1); // Default 1
+  const [widgetPauseMins, setWidgetPauseMins] = useState(10); // Default 10 min
+  const [isWidgetPaused, setIsWidgetPaused] = useState(false);
+  const [widgetPauseSecondsLeft, setWidgetPauseSecondsLeft] = useState(0);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingTitleValue, setEditingTitleValue] = useState('');
   const [isEditingDesc, setIsEditingDesc] = useState(false);
   const [editingDescValue, setEditingDescValue] = useState('');
+  const [goalCycleCount, setGoalCycleCount] = useState(0);
+
+  // Widget Pause Timer (lives in App to survive widget unmounting when in folders)
+  useEffect(() => {
+    if (!isWidgetPaused || widgetPauseSecondsLeft <= 0) return;
+
+    const tick = setInterval(() => {
+      setWidgetPauseSecondsLeft(prev => {
+        if (prev <= 1) {
+          setIsWidgetPaused(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(tick);
+  }, [isWidgetPaused, widgetPauseSecondsLeft]);
+
+  const toggleWidgetPause = useCallback(() => {
+    if (isWidgetPaused) {
+      setIsWidgetPaused(false);
+      setWidgetPauseSecondsLeft(0);
+    } else {
+      setIsWidgetPaused(true);
+      setWidgetPauseSecondsLeft(widgetPauseMins * 60);
+    }
+  }, [isWidgetPaused, widgetPauseMins]);
 
   const [backgrounds, setBackgrounds] = useState<string[]>([
     '/bg1.png', 
@@ -326,6 +363,16 @@ function App() {
     return () => clearInterval(interval);
   }, [isPaused, backgrounds.length, bgRotationInterval]);
 
+  // Goal Marquee Cycling
+  useEffect(() => {
+    if (!showGoalMarquee || goals.length === 0) return;
+    const interval = setInterval(() => {
+      setCurrentGoalIndex(prev => (prev + 1) % goals.length);
+      setGoalCycleCount(prev => prev + 1);
+    }, goalMarqueeInterval * 1000);
+    return () => clearInterval(interval);
+  }, [showGoalMarquee, goals.length, goalMarqueeInterval]);
+
   useEffect(() => {
     const unsubBookmarks = onSnapshot(collection(db, 'bookmarks'), (snapshot) => {
       const items: Bookmark[] = [];
@@ -355,13 +402,25 @@ function App() {
 
     const unsubSettings = onSnapshot(doc(db, 'settings', 'dashboard'), (d) => {
       if (d.exists()) {
-        if (d.data().gridColumns) setGridColumns(d.data().gridColumns);
-        if (d.data().backgrounds && d.data().backgrounds.length > 0) setBackgrounds(d.data().backgrounds);
-        if (d.data().bgRotationInterval) setBgRotationInterval(d.data().bgRotationInterval);
+        const data = d.data();
+        if (data.backgrounds) setBackgrounds(data.backgrounds);
+        if (data.bgRotationInterval) setBgRotationInterval(data.bgRotationInterval);
+        if (data.gridColumns) setGridColumns(data.gridColumns);
+        if (data.showGoalMarquee !== undefined) setShowGoalMarquee(data.showGoalMarquee);
+        if (data.goalMarqueeInterval) setGoalMarqueeInterval(data.goalMarqueeInterval);
+        if (data.goalMarqueeRepeatCount !== undefined) setGoalMarqueeRepeatCount(data.goalMarqueeRepeatCount);
+        if (data.widgetPauseMins) setWidgetPauseMins(data.widgetPauseMins);
       }
     });
 
-    return () => { unsubBookmarks(); unsubWorkspaces(); unsubSettings(); };
+    const unsubGoals = onSnapshot(collection(db, 'main_goals'), (snapshot) => {
+      const items: any[] = [];
+      snapshot.forEach(d => items.push({ id: d.id, ...d.data() }));
+      items.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      setGoals(items);
+    });
+
+    return () => { unsubBookmarks(); unsubWorkspaces(); unsubSettings(); unsubGoals(); };
   }, [isLoading]);
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -956,7 +1015,11 @@ function App() {
                 zIndex: 1,
               }}
             >
-              {activePage === 'whiteboard' ? (
+              {activePage === 'habits' ? (
+                <ErrorBoundary>
+                  <HabitsView />
+                </ErrorBoundary>
+              ) : activePage === 'whiteboard' ? (
                 <ErrorBoundary>
                   <WhiteboardView />
                 </ErrorBoundary>
@@ -981,7 +1044,12 @@ function App() {
                     padding: isMobile ? '0 16px' : '0 40px',
                   }}>
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <SearchBar preview={hoveredBookmark} />
+                    <SearchBar 
+                      preview={hoveredBookmark} 
+                      goal={showGoalMarquee && goals.length > 0 ? goals[currentGoalIndex]?.text : null} 
+                      goalCycleCount={goalCycleCount}
+                      goalMarqueeRepeatCount={goalMarqueeRepeatCount}
+                    />
  
                     {expandedFolderId ? (
                       <motion.div
@@ -1341,7 +1409,17 @@ function App() {
                         folder={bookmarks.find(b => b.id === expandedFolderId)}
                       />
                     ) : (
-                      <CalendarWidget hoveredBookmark={hoveredBookmark} />
+                      <CalendarWidget 
+                        hoveredBookmark={hoveredBookmark} 
+                        widgetPauseMins={widgetPauseMins}
+                        isPaused={isWidgetPaused}
+                        pauseSecondsLeft={widgetPauseSecondsLeft}
+                        onPauseToggle={toggleWidgetPause}
+                        onCancelPause={() => {
+                          setIsWidgetPaused(false);
+                          setWidgetPauseSecondsLeft(0);
+                        }}
+                      />
                     )}
                   </div>
                 </div>
@@ -1570,7 +1648,30 @@ function App() {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         gridColumns={gridColumns}
-        onGridColumnsChange={updateGridColumns}
+        onGridColumnsChange={async (cols) => {
+          setGridColumns(cols);
+          await setDoc(doc(db, 'settings', 'dashboard'), { gridColumns: cols }, { merge: true });
+        }}
+        showGoalMarquee={showGoalMarquee}
+        onShowGoalMarqueeChange={async (val) => {
+          setShowGoalMarquee(val);
+          await setDoc(doc(db, 'settings', 'dashboard'), { showGoalMarquee: val }, { merge: true });
+        }}
+        goalMarqueeInterval={goalMarqueeInterval}
+        onGoalMarqueeIntervalChange={async (val) => {
+          setGoalMarqueeInterval(val);
+          await setDoc(doc(db, 'settings', 'dashboard'), { goalMarqueeInterval: val }, { merge: true });
+        }}
+        goalMarqueeRepeatCount={goalMarqueeRepeatCount}
+        onGoalMarqueeRepeatCountChange={async (val) => {
+          setGoalMarqueeRepeatCount(val);
+          await setDoc(doc(db, 'settings', 'dashboard'), { goalMarqueeRepeatCount: val }, { merge: true });
+        }}
+        widgetPauseMins={widgetPauseMins}
+        onWidgetPauseMinsChange={async (val) => {
+          setWidgetPauseMins(val);
+          await setDoc(doc(db, 'settings', 'dashboard'), { widgetPauseMins: val }, { merge: true });
+        }}
         workspaces={workspaces}
         activeWorkspaceId={activeWorkspaceId}
         onWorkspaceChange={setActiveWorkspaceId}

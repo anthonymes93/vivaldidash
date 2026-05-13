@@ -13,6 +13,9 @@ interface SearchBarProps {
     customIconUrl?: string;
     priorityText?: string;
   } | null;
+  goal?: string | null;
+  goalCycleCount?: number;
+  goalMarqueeRepeatCount?: number;
 }
 
 const BRAND_COLORS: Record<string, string> = {
@@ -40,10 +43,14 @@ const BRAND_COLORS: Record<string, string> = {
   'Instagram': '#e1306c',
 };
 
-const SearchBar: React.FC<SearchBarProps> = ({ preview }) => {
+const SearchBar: React.FC<SearchBarProps> = ({ preview, goal, goalCycleCount, goalMarqueeRepeatCount = 1 }) => {
   const [query, setQuery] = useState('');
   const [accentColor, setAccentColor] = useState('#7c4dff');
   const [shouldMarquee, setShouldMarquee] = useState(false);
+  const [scrollDistance, setScrollDistance] = useState(0);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const [textWidth, setTextWidth] = useState(0);
+  const [isMarqueeActive, setIsMarqueeActive] = useState(false);
   const textRef = useRef<HTMLSpanElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -69,12 +76,28 @@ const SearchBar: React.FC<SearchBarProps> = ({ preview }) => {
 
   useEffect(() => {
     if (textRef.current && containerRef.current) {
-      const isOverflowing = textRef.current.scrollWidth > containerRef.current.clientWidth;
+      const cWidth = containerRef.current.clientWidth;
+      const tWidth = textRef.current.scrollWidth;
+      setContainerWidth(cWidth);
+      setTextWidth(tWidth);
+      const isOverflowing = tWidth > cWidth;
       setShouldMarquee(isOverflowing);
+      if (isOverflowing) {
+        setScrollDistance(tWidth - cWidth);
+      }
     } else {
       setShouldMarquee(false);
+      setScrollDistance(0);
+      setContainerWidth(0);
+      setTextWidth(0);
     }
-  }, [preview?.priorityText]);
+  }, [preview?.priorityText, goal, goalCycleCount]);
+
+  useEffect(() => {
+    if (goal) {
+      setIsMarqueeActive(true);
+    }
+  }, [goal, goalCycleCount]);
 
   useEffect(() => {
     if (!preview) {
@@ -207,6 +230,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ preview }) => {
               noBackground={true}
             />
           </motion.div>
+        ) : (goal && isMarqueeActive) ? (
+          <motion.div
+            key="goal-icon"
+            initial={{ opacity: 0, scale: 0.5, rotate: -20 }}
+            animate={{ opacity: 1, scale: 1, rotate: 0 }}
+            exit={{ opacity: 0, scale: 0.5 }}
+            style={{ display: 'flex', alignItems: 'center', marginRight: '12px' }}
+          >
+            <Star size={24} color="#7c4dff" fill="#7c4dff" style={{ filter: 'drop-shadow(0 0 8px rgba(124, 77, 255, 0.4))' }} />
+          </motion.div>
         ) : (
           <motion.div
             key="search-icon"
@@ -224,7 +257,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ preview }) => {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder={preview ? '' : "Search Yahoo..."}
+          placeholder={(preview || (goal && goal.length > 0 && isMarqueeActive)) ? "" : "Search Yahoo..."}
           style={{
             width: '100%',
             padding: '12px 16px',
@@ -300,6 +333,67 @@ const SearchBar: React.FC<SearchBarProps> = ({ preview }) => {
               ) : (
                 <>Go to <span style={{ color: accentColor, fontWeight: 500 }}>{preview.title}</span></>
               )}
+            </motion.span>
+          )}
+
+          {goal && isMarqueeActive && !preview && !query && (
+            <motion.span
+              key={`goal-marquee-${goal}-${goalCycleCount}`}
+              initial={{ opacity: 0, x: 5 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -5 }}
+              style={{
+                position: 'absolute',
+                left: '16px',
+                pointerEvents: 'none',
+                fontSize: '18px',
+                fontWeight: 300,
+                color: 'rgba(255, 255, 255, 0.6)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                width: '100%'
+              }}
+            >
+              <span style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '8px', 
+                overflow: 'hidden', 
+                maxWidth: 'calc(100% - 24px)',
+                maskImage: shouldMarquee ? 'linear-gradient(to right, transparent, black 2%, black 95%, transparent)' : 'none'
+              }}>
+                <span style={{ flexShrink: 0 }}>FOCUS:</span>
+                <div 
+                  ref={containerRef}
+                  style={{ 
+                    overflow: 'hidden', 
+                    whiteSpace: 'nowrap',
+                    display: 'flex',
+                    flex: 1
+                  }}>
+                  <motion.span 
+                    ref={textRef}
+                    initial={{ x: containerWidth || 400 }}
+                    animate={{ x: -(textWidth || 600) }}
+                    transition={{ 
+                      repeat: goalMarqueeRepeatCount - 1,
+                      duration: Math.max(10, (textWidth + containerWidth) / 60), 
+                      ease: "linear",
+                      delay: 0.5
+                    }}
+                    onAnimationComplete={() => setIsMarqueeActive(false)}
+                    style={{ 
+                      color: 'white', 
+                      fontWeight: 500,
+                      whiteSpace: 'nowrap',
+                      display: 'inline-block'
+                    }}
+                  >
+                    {goal}
+                  </motion.span>
+                </div>
+              </span>
             </motion.span>
           )}
         </AnimatePresence>

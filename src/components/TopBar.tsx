@@ -26,6 +26,7 @@ interface TopBarProps {
 const PAGES = [
   { id: 'dashboard', name: 'Dashboard', icon: <LayoutDashboard size={18} /> },
   { id: 'calendar', name: 'Calendar', icon: <Calendar size={18} /> },
+  { id: 'habits', name: 'Habits', icon: <TrendingUp size={18} /> },
   { id: 'whiteboard', name: 'Whiteboard', icon: <PenTool size={18} /> },
   { id: 'goal', name: 'Main Goal', icon: <Target size={18} /> },
 ];
