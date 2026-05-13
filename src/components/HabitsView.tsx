@@ -13,8 +13,7 @@ import {
   Settings,
   Eye,
   ArrowUp,
-  ArrowDown,
-  Minus
+  ArrowDown
 } from 'lucide-react';
 import { db } from '../firebase';
 import {
@@ -63,7 +62,7 @@ const HabitsView: React.FC = () => {
   const [isLimitModalOpen, setIsLimitModalOpen] = useState(false);
   const [limitInput, setLimitInput] = useState('');
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Firebase listeners + active-session recovery ─────────────────────────
   useEffect(() => {
@@ -689,7 +688,7 @@ const HabitsView: React.FC = () => {
               {sessions.length === 0 ? (
                 <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.2)', textAlign: 'center', padding: '20px' }}>No history recorded yet.</p>
               ) : (
-                sessions.map((s, i) => (
+                sessions.map((s) => (
                   <div key={s.id} style={{
                     padding: '16px',
                     borderRadius: '16px',
@@ -762,7 +761,7 @@ const HabitsView: React.FC = () => {
               <Eye size={16} color="rgba(255,255,255,0.3)" />
               <span style={{ fontSize: '12px', fontWeight: 700, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '1.5px' }}>What the data shows</span>
             </div>
-            {ranked.map((ins, i) => (
+            {ranked.map((ins) => (
               <div key={ins.key} style={{
                 background: 'rgba(12, 12, 18, 0.82)',
                 backdropFilter: 'blur(24px)',

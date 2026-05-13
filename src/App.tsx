@@ -123,7 +123,7 @@ function App() {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; id: string } | null>(null);
   const [keyboardSelectedId, setKeyboardSelectedId] = useState<string | null>(null);
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
-  
+
   // Workspaces state
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>(() => {
@@ -136,7 +136,7 @@ function App() {
 
   const [selectedBookmarkIdsState, setSelectedBookmarkIdsState] = useState<string[]>([]);
   const selectedBookmarkIdsRef = useRef<string[]>([]);
-  
+
   const setSelectedBookmarkIds = useCallback((updater: React.SetStateAction<string[]>) => {
     setSelectedBookmarkIdsState(prev => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
@@ -146,9 +146,9 @@ function App() {
   }, []);
   const [isLoading, setIsLoading] = useState(true);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [hoveredBookmark, setHoveredBookmark] = useState<{ 
-    id: string; 
-    title: string; 
+  const [hoveredBookmark, setHoveredBookmark] = useState<{
+    id: string;
+    title: string;
     url: string;
     iconType?: 'favicon' | 'lucide' | 'custom';
     lucideIcon?: string;
@@ -201,11 +201,11 @@ function App() {
   }, [isWidgetPaused, widgetPauseMins]);
 
   const [backgrounds, setBackgrounds] = useState<string[]>([
-    '/bg1.png', 
-    '/bg2.png', 
+    '/bg1.png',
+    '/bg2.png',
     'youtube:VpG0GUSz8-s',
-    '/bg3.png', 
-    '/bg4.png', 
+    '/bg3.png',
+    '/bg4.png',
     '/bg5.png'
   ]);
   const [bgRotationInterval, setBgRotationInterval] = useState<number>(15000);
@@ -231,7 +231,7 @@ function App() {
       const firstScriptTag = document.getElementsByTagName('script')[0];
       firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
     }
-    
+
     // Define global callback for YT API
     (window as any).onYouTubeIframeAPIReady = () => {
       // API is ready
@@ -274,7 +274,7 @@ function App() {
             setVideoProgress((current / total) * 100);
             setVideoTime({ current, total });
           }
-        } catch (e) {}
+        } catch (e) { }
       }, 500);
     }
     return () => clearInterval(interval);
@@ -293,11 +293,11 @@ function App() {
     try {
       if (isZenMode) {
         if (!document.fullscreenElement) {
-          document.documentElement.requestFullscreen().catch(() => {});
+          document.documentElement.requestFullscreen().catch(() => { });
         }
       } else {
         if (document.fullscreenElement) {
-          document.exitFullscreen().catch(() => {});
+          document.exitFullscreen().catch(() => { });
         }
       }
     } catch (e) {
@@ -390,7 +390,7 @@ function App() {
     const unsubWorkspaces = onSnapshot(collection(db, 'workspaces'), (snapshot) => {
       const items: Workspace[] = [];
       snapshot.forEach(d => items.push({ id: d.id, ...d.data() } as Workspace));
-      
+
       if (items.length === 0) {
         // Create default workspace if it doesn't exist
         const defaultWorkspace = { name: 'Main Dashboard' };
@@ -467,20 +467,20 @@ function App() {
 
   const addBookmark = async (title: string, url: string, iconProps?: any) => {
     const parentId = expandedFolderId;
-    const pageBookmarks = bookmarks.filter(b => 
-      (b.page || 'dashboard') === activePage && 
+    const pageBookmarks = bookmarks.filter(b =>
+      (b.page || 'dashboard') === activePage &&
       (parentId ? b.parentId === parentId : !b.parentId) &&
       (b.workspaceId === activeWorkspaceId || (!b.workspaceId && activeWorkspaceId === 'default'))
     );
     const nextOrder = pageBookmarks.length;
-    
-    const newBookmarkData: any = { 
-      title, 
-      url, 
-      order: nextOrder, 
-      page: parentId ? 'hidden' : activePage, 
+
+    const newBookmarkData: any = {
+      title,
+      url,
+      order: nextOrder,
+      page: parentId ? 'hidden' : activePage,
       workspaceId: activeWorkspaceId,
-      ...iconProps 
+      ...iconProps
     };
 
     if (parentId) {
@@ -489,7 +489,7 @@ function App() {
 
     Object.keys(newBookmarkData).forEach(key => {
       if (newBookmarkData[key] === undefined) {
-         delete newBookmarkData[key];
+        delete newBookmarkData[key];
       }
     });
 
@@ -498,7 +498,7 @@ function App() {
   };
   const editBookmark = async (id: string, title: string, url: string, iconProps?: any) => {
     const updateData: any = { title, url, ...iconProps };
-    
+
     // Ensure parentId is preserved or updated if needed
     const existing = bookmarks.find(b => b.id === id);
     if (existing?.parentId) {
@@ -510,7 +510,7 @@ function App() {
     // For simplicity, we just won't update them if they are undefined.
     Object.keys(updateData).forEach(key => {
       if (updateData[key] === undefined) {
-         delete updateData[key];
+        delete updateData[key];
       }
     });
 
@@ -525,17 +525,13 @@ function App() {
     await updateDoc(doc(db, 'bookmarks', id), { notes });
   };
 
-  const updateGridColumns = async (cols: number) => {
-    setGridColumns(cols);
-    await setDoc(doc(db, 'settings', 'dashboard'), { gridColumns: cols }, { merge: true });
-  };
 
   const customCollisionStrategy = (args: any) => {
     if (expandedFolderId) {
       const { pointerCoordinates } = args;
       const intersections = closestCenter(args);
-      
-      const internalIntersections = intersections.filter((i: any) => 
+
+      const internalIntersections = intersections.filter((i: any) =>
         bookmarks.some(b => b.id === i.id && b.parentId === expandedFolderId)
       );
 
@@ -544,10 +540,10 @@ function App() {
       if (pointerCoordinates) {
         const screenCenter = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
         const distToCenter = Math.sqrt(
-          Math.pow(pointerCoordinates.x - screenCenter.x, 2) + 
+          Math.pow(pointerCoordinates.x - screenCenter.x, 2) +
           Math.pow(pointerCoordinates.y - screenCenter.y, 2)
         );
-        
+
         // If we are more than 400px from the screen center, eject!
         if (distToCenter > 400) return [{ id: 'remove-from-folder' }];
       }
@@ -555,10 +551,10 @@ function App() {
       if (internalIntersections.length === 0) {
         return [{ id: 'remove-from-folder' }];
       }
-      
+
       return internalIntersections;
     }
-    
+
     return closestCenter(args);
   };
 
@@ -579,9 +575,9 @@ function App() {
       if (draggedBookmark && draggedBookmark.parentId) {
         const folderId = draggedBookmark.parentId;
         const folder = bookmarks.find(b => b.id === folderId);
-        
-        await updateDoc(doc(db, 'bookmarks', draggedBookmarkId), { 
-          parentId: null, 
+
+        await updateDoc(doc(db, 'bookmarks', draggedBookmarkId), {
+          parentId: null,
           page: activePage,
           order: bookmarks.filter(b => (b.page || 'dashboard') === activePage && !b.parentId).length
         });
@@ -616,17 +612,17 @@ function App() {
     if (overId === 'dock' || overId === 'dock_center' || overId === 'dock_right' || (overBookmark && (overBookmark.page === 'dock' || overBookmark.page === 'dock_center' || overBookmark.page === 'dock_right'))) {
       const targetPage = (overId === 'dock' || overId === 'dock_center' || overId === 'dock_right') ? overId as string : overBookmark!.page!;
       const targetDockBookmarks = bookmarks.filter(b => b.page === targetPage).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-      
+
       if (overId === 'dock' || overId === 'dock_center' || overId === 'dock_right') {
-        await updateDoc(doc(db, 'bookmarks', draggedBookmarkId), { 
-          page: targetPage, 
+        await updateDoc(doc(db, 'bookmarks', draggedBookmarkId), {
+          page: targetPage,
           parentId: null,
-          order: targetDockBookmarks.length 
+          order: targetDockBookmarks.length
         });
       } else {
         const oldIdx = targetDockBookmarks.findIndex(b => b.id === draggedBookmarkId);
         const newIdx = targetDockBookmarks.findIndex(b => b.id === overId);
-        
+
         if (oldIdx !== -1) {
           const reordered = arrayMove(targetDockBookmarks, oldIdx, newIdx);
           reordered.forEach(async (b, idx) => {
@@ -643,17 +639,17 @@ function App() {
     if (draggedBookmark && (draggedBookmark.page === 'dock' || draggedBookmark.page === 'dock_center' || draggedBookmark.page === 'dock_right')) {
       const isOverGrid = overId === 'dashboard' || (overBookmark && overBookmark.page !== 'dock' && overBookmark.page !== 'dock_center' && overBookmark.page !== 'dock_right');
       if (isOverGrid) {
-        await updateDoc(doc(db, 'bookmarks', draggedBookmarkId), { 
-          page: activePage, 
+        await updateDoc(doc(db, 'bookmarks', draggedBookmarkId), {
+          page: activePage,
           parentId: null,
-          order: rootBookmarks.length 
+          order: rootBookmarks.length
         });
         return;
       }
     }
 
     if (draggedBookmarkId === overId) return;
- 
+
     let isDropOnCenter = false;
     if (overBookmark && !PAGE_IDS.includes(overId)) {
       const activeRect = active.rect.current?.translated;
@@ -708,17 +704,17 @@ function App() {
     if (e?.ctrlKey || e?.metaKey) {
       e.preventDefault();
       e.stopPropagation();
-      
+
       const selectable = rootBookmarks;
       if (lastSelectedId && selectedBookmarkIdsState.includes(lastSelectedId)) {
         const startIdx = selectable.findIndex(b => b.id === lastSelectedId);
         const endIdx = selectable.findIndex(b => b.id === id);
-        
+
         if (startIdx !== -1 && endIdx !== -1) {
           const min = Math.min(startIdx, endIdx);
           const max = Math.max(startIdx, endIdx);
           const rangeIds = selectable.slice(min, max + 1).map(b => b.id);
-          
+
           setSelectedBookmarkIds(prev => {
             const next = [...new Set([...prev, ...rangeIds])];
             return next;
@@ -751,9 +747,9 @@ function App() {
     if (bookmark) { setEditData(bookmark); setIsModalOpen(true); }
   };
 
-  const rootBookmarks = bookmarks.filter(b => 
-    (expandedFolderId 
-      ? b.parentId === expandedFolderId 
+  const rootBookmarks = bookmarks.filter(b =>
+    (expandedFolderId
+      ? b.parentId === expandedFolderId
       : ((b.page || 'dashboard') === activePage && !b.parentId)) &&
     (b.workspaceId === activeWorkspaceId || (!b.workspaceId && activeWorkspaceId === 'default'))
   );
@@ -848,11 +844,11 @@ function App() {
   const availW = windowWidth - calendarWidth - layoutPaddingX;
   const availH = window.innerHeight - layoutPaddingY;
   const containerAspect = availW / availH;
-  
+
   // Calculate columns to match the screen's aspect ratio
   let dynamicCols = Math.ceil(Math.sqrt(totalItems * containerAspect));
-  dynamicCols = isMobile 
-    ? 4 
+  dynamicCols = isMobile
+    ? 4
     : Math.max(6, Math.min(12, dynamicCols));
   const dynamicRows = Math.ceil(totalItems / dynamicCols);
 
@@ -860,7 +856,7 @@ function App() {
   // Calculate size to fit both width and height constraints
   const sizeToFitW = (availW - (dynamicCols - 1) * gap) / dynamicCols;
   const sizeToFitH = (availH - (dynamicRows - 1) * gap) / dynamicRows;
-  
+
   const iconSize = Math.min(120, Math.max(48, Math.min(sizeToFitW, sizeToFitH)));
 
   const expandedBookmark = bookmarks.find(b => b.id === expandedId);
@@ -873,17 +869,17 @@ function App() {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div 
-        ref={setDashboardRef} 
-        className="dashboard-container" 
-        style={{ overflowX: 'hidden' }} 
+      <div
+        ref={setDashboardRef}
+        className="dashboard-container"
+        style={{ overflowX: 'hidden' }}
       >
         <motion.div
           id="top-bar"
-          animate={{ 
+          animate={{
             opacity: isZenMode ? 0 : 1,
             y: isZenMode ? -20 : 0,
-            pointerEvents: isZenMode ? 'none' : 'auto' 
+            pointerEvents: isZenMode ? 'none' : 'auto'
           }}
           transition={{ duration: 0.5 }}
           style={{ position: 'relative', zIndex: 10, width: '100%', left: 0, top: 0 }}
@@ -902,7 +898,7 @@ function App() {
         </motion.div>
 
         {/* Background Layer - Handles Zen Mode Toggling */}
-        <div 
+        <div
           onClick={handleBgClick}
           style={{
             position: 'fixed',
@@ -920,7 +916,7 @@ function App() {
               <motion.div
                 key={index}
                 initial={{ opacity: 0 }}
-                animate={{ 
+                animate={{
                   opacity: isActive ? 1 : 0,
                   scale: isActive ? 1 : 1.05
                 }}
@@ -933,40 +929,40 @@ function App() {
                   height: '100%',
                   pointerEvents: 'none',
                   overflow: 'hidden',
-                  display: isActive || (previewBgIndex === null && index === (bgIndex - 1 + backgrounds.length) % backgrounds.length) ? 'block' : 'none' 
+                  display: isActive || (previewBgIndex === null && index === (bgIndex - 1 + backgrounds.length) % backgrounds.length) ? 'block' : 'none'
                 }}
               >
-            {bg.startsWith('youtube:') ? (
-              <iframe
-                id={index === bgIndex ? 'bg-video-iframe' : undefined}
-                src={`https://www.youtube.com/embed/${bg.split(':')[1]}?autoplay=1&mute=1&loop=1&playlist=${bg.split(':')[1]}&controls=0&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&enablejsapi=1`}
-                style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  width: '100vw',
-                  height: '56.25vw',
-                  minHeight: '100vh',
-                  minWidth: '177.77vh',
-                  transform: 'translate(-50%, -50%)',
-                  border: 'none',
-                  pointerEvents: 'none',
-                }}
-                allow="autoplay; encrypted-media"
-                title={`background-video-${index}`}
-              />
-            ) : (
-              <img
-                src={bg}
-                className="background-image"
-                alt="background"
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                }}
-              />
-            )}
+                {bg.startsWith('youtube:') ? (
+                  <iframe
+                    id={index === bgIndex ? 'bg-video-iframe' : undefined}
+                    src={`https://www.youtube.com/embed/${bg.split(':')[1]}?autoplay=1&mute=1&loop=1&playlist=${bg.split(':')[1]}&controls=0&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&enablejsapi=1`}
+                    style={{
+                      position: 'absolute',
+                      top: '50%',
+                      left: '50%',
+                      width: '100vw',
+                      height: '56.25vw',
+                      minHeight: '100vh',
+                      minWidth: '177.77vh',
+                      transform: 'translate(-50%, -50%)',
+                      border: 'none',
+                      pointerEvents: 'none',
+                    }}
+                    allow="autoplay; encrypted-media"
+                    title={`background-video-${index}`}
+                  />
+                ) : (
+                  <img
+                    src={bg}
+                    className="background-image"
+                    alt="background"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                    }}
+                  />
+                )}
               </motion.div>
             );
           })}
@@ -993,8 +989,8 @@ function App() {
             <motion.div
               key={activePage}
               initial={{ opacity: 0, y: 10 }}
-              animate={{ 
-                opacity: isZenMode ? 0 : 1, 
+              animate={{
+                opacity: isZenMode ? 0 : 1,
                 scale: isZenMode ? 0.98 : 1,
                 y: 0,
                 pointerEvents: isZenMode ? 'none' : 'auto'
@@ -1032,7 +1028,7 @@ function App() {
                   <GoalView />
                 </ErrorBoundary>
               ) : (
-                <div 
+                <div
                   onClick={(e) => e.stopPropagation()}
                   style={{
                     display: 'flex',
@@ -1044,13 +1040,13 @@ function App() {
                     padding: isMobile ? '0 16px' : '0 40px',
                   }}>
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <SearchBar 
-                      preview={hoveredBookmark} 
-                      goal={showGoalMarquee && goals.length > 0 ? goals[currentGoalIndex]?.text : null} 
+                    <SearchBar
+                      preview={hoveredBookmark}
+                      goal={showGoalMarquee && goals.length > 0 ? goals[currentGoalIndex]?.text : null}
                       goalCycleCount={goalCycleCount}
                       goalMarqueeRepeatCount={goalMarqueeRepeatCount}
                     />
- 
+
                     {expandedFolderId ? (
                       <motion.div
                         initial={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -1092,7 +1088,7 @@ function App() {
                         >
                           <ChevronLeft size={22} strokeWidth={2.5} />
                         </motion.button>
-                        
+
                         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                           {isEditingTitle ? (
                             <input
@@ -1129,15 +1125,15 @@ function App() {
                               }}
                             />
                           ) : (
-                            <h1 
+                            <h1
                               onClick={() => {
                                 setIsEditingTitle(true);
                                 setEditingTitleValue(bookmarks.find(b => b.id === expandedFolderId)?.title || '');
                               }}
-                              style={{ 
-                                fontSize: '24px', 
-                                fontWeight: 600, 
-                                color: 'white', 
+                              style={{
+                                fontSize: '24px',
+                                fontWeight: 600,
+                                color: 'white',
                                 margin: 0,
                                 letterSpacing: '-0.3px',
                                 textShadow: '0 2px 8px rgba(0,0,0,0.2)',
@@ -1148,9 +1144,9 @@ function App() {
                             </h1>
                           )}
 
-                          <div style={{ 
-                            height: '24px', 
-                            width: '1px', 
+                          <div style={{
+                            height: '24px',
+                            width: '1px',
                             background: 'rgba(255, 255, 255, 0.1)',
                             margin: '0 8px'
                           }} />
@@ -1189,13 +1185,13 @@ function App() {
                               }}
                             />
                           ) : (
-                            <span 
+                            <span
                               onClick={() => {
                                 setIsEditingDesc(true);
                                 setEditingDescValue(bookmarks.find(b => b.id === expandedFolderId)?.description || '');
                               }}
-                              style={{ 
-                                fontSize: '14px', 
+                              style={{
+                                fontSize: '14px',
                                 color: 'rgba(255, 255, 255, 0.5)',
                                 cursor: 'pointer',
                                 fontStyle: bookmarks.find(b => b.id === expandedFolderId)?.description ? 'normal' : 'italic'
@@ -1207,28 +1203,28 @@ function App() {
                         </div>
                       </motion.div>
                     ) : (
-                      <div style={{ 
-                        display: 'flex', 
+                      <div style={{
+                        display: 'flex',
                         flexWrap: isMobile ? 'wrap' : 'nowrap',
-                        justifyContent: 'center', 
-                        gap: `${Math.max(4, dockItemSize / 4)}px`, 
-                        width: '100%', 
+                        justifyContent: 'center',
+                        gap: `${Math.max(4, dockItemSize / 4)}px`,
+                        width: '100%',
                         maxWidth: `${dynamicCols * iconSize + (dynamicCols - 1) * gap}px`,
                         margin: '0 auto',
                         boxSizing: 'border-box',
                         marginTop: '20px'
                       }}>
                         <div style={{ flex: 1 }}>
-                          <Dock 
+                          <Dock
                             id="dock"
                             align="left"
                             items={dockBookmarks}
                             keyboardSelectedId={keyboardSelectedId}
                             onContextMenu={handleContextMenu}
                             onBookmarkClick={handleBookmarkClick}
-                            onMouseEnter={(item) => !isMobile && setHoveredBookmark({ 
-                              id: item.id, 
-                              title: item.title, 
+                            onMouseEnter={(item) => !isMobile && setHoveredBookmark({
+                              id: item.id,
+                              title: item.title,
                               url: item.url,
                               iconType: item.iconType,
                               lucideIcon: item.lucideIcon,
@@ -1243,9 +1239,9 @@ function App() {
                         </div>
 
                         {!isMobile && (
-                          <div style={{ 
-                            width: '1px', 
-                            height: '24px', 
+                          <div style={{
+                            width: '1px',
+                            height: '24px',
                             background: 'rgba(255,255,255,0.2)',
                             margin: '0 12px',
                             alignSelf: 'center'
@@ -1253,16 +1249,16 @@ function App() {
                         )}
 
                         <div style={{ flex: 1 }}>
-                          <Dock 
+                          <Dock
                             id="dock_center"
                             align="center"
                             items={dockCenterBookmarks}
                             keyboardSelectedId={keyboardSelectedId}
                             onContextMenu={handleContextMenu}
                             onBookmarkClick={handleBookmarkClick}
-                            onMouseEnter={(item) => !isMobile && setHoveredBookmark({ 
-                              id: item.id, 
-                              title: item.title, 
+                            onMouseEnter={(item) => !isMobile && setHoveredBookmark({
+                              id: item.id,
+                              title: item.title,
                               url: item.url,
                               iconType: item.iconType,
                               lucideIcon: item.lucideIcon,
@@ -1277,9 +1273,9 @@ function App() {
                         </div>
 
                         {!isMobile && (
-                          <div style={{ 
-                            width: '1px', 
-                            height: '24px', 
+                          <div style={{
+                            width: '1px',
+                            height: '24px',
                             background: 'rgba(255,255,255,0.2)',
                             margin: '0 12px',
                             alignSelf: 'center'
@@ -1287,16 +1283,16 @@ function App() {
                         )}
 
                         <div style={{ flex: 1 }}>
-                          <Dock 
+                          <Dock
                             id="dock_right"
                             align="right"
                             items={dockRightBookmarks}
                             keyboardSelectedId={keyboardSelectedId}
                             onContextMenu={handleContextMenu}
                             onBookmarkClick={handleBookmarkClick}
-                            onMouseEnter={(item) => !isMobile && setHoveredBookmark({ 
-                              id: item.id, 
-                              title: item.title, 
+                            onMouseEnter={(item) => !isMobile && setHoveredBookmark({
+                              id: item.id,
+                              title: item.title,
                               url: item.url,
                               iconType: item.iconType,
                               lucideIcon: item.lucideIcon,
@@ -1330,8 +1326,8 @@ function App() {
                     )}
 
                     {!isLoading && (
-                      <SortableContext 
-                        items={rootBookmarks.map(b => b.id)} 
+                      <SortableContext
+                        items={rootBookmarks.map(b => b.id)}
                         strategy={rectSortingStrategy}
                       >
                         <ErrorBoundary>
@@ -1354,9 +1350,9 @@ function App() {
                                 onContextMenu={handleContextMenu}
                                 onClick={handleBookmarkClick}
                                 isSelected={selectedBookmarkIdsState.includes(bookmark.id) || keyboardSelectedId === bookmark.id}
-                                onMouseEnter={() => !isMobile && setHoveredBookmark({ 
-                                  id: bookmark.id, 
-                                  title: bookmark.title, 
+                                onMouseEnter={() => !isMobile && setHoveredBookmark({
+                                  id: bookmark.id,
+                                  title: bookmark.title,
                                   url: bookmark.url,
                                   iconType: bookmark.iconType,
                                   lucideIcon: bookmark.lucideIcon,
@@ -1394,23 +1390,23 @@ function App() {
                       </SortableContext>
                     )}
                   </div>
-                  
-                  <div style={{ 
-                    flexShrink: 0, 
+
+                  <div style={{
+                    flexShrink: 0,
                     marginTop: isMobile ? '40px' : '20px',
                     display: 'block',
                     width: isMobile ? '100%' : 'auto'
                   }}>
                     {expandedFolderId ? (
-                      <GroupNotes 
-                        folderId={expandedFolderId} 
+                      <GroupNotes
+                        folderId={expandedFolderId}
                         notes={bookmarks.find(b => b.id === expandedFolderId)?.notes || ''}
                         onUpdate={(notes) => updateNotes(expandedFolderId, notes)}
                         folder={bookmarks.find(b => b.id === expandedFolderId)}
                       />
                     ) : (
-                      <CalendarWidget 
-                        hoveredBookmark={hoveredBookmark} 
+                      <CalendarWidget
+                        hoveredBookmark={hoveredBookmark}
                         widgetPauseMins={widgetPauseMins}
                         isPaused={isWidgetPaused}
                         pauseSecondsLeft={widgetPauseSecondsLeft}
@@ -1438,10 +1434,10 @@ function App() {
         <motion.div
           id="bottom-pill"
           initial={{ opacity: 0, y: 20 }}
-          animate={{ 
-            opacity: isZenMode ? 0 : 1, 
+          animate={{
+            opacity: isZenMode ? 0 : 1,
             y: isZenMode ? 40 : 0,
-            pointerEvents: isZenMode ? 'none' : 'auto' 
+            pointerEvents: isZenMode ? 'none' : 'auto'
           }}
           transition={{ duration: 0.5 }}
           style={{
@@ -1473,7 +1469,7 @@ function App() {
             >
               <ChevronLeft size={20} />
             </motion.button>
- 
+
             <motion.button
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
@@ -1483,7 +1479,7 @@ function App() {
             >
               {isPaused ? <Play size={20} fill="white" /> : <Pause size={20} fill="white" />}
             </motion.button>
- 
+
             <motion.button
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
@@ -1493,9 +1489,9 @@ function App() {
             >
               <ChevronRight size={20} />
             </motion.button>
- 
+
             <div style={{ height: '20px', width: '1px', background: 'rgba(255,255,255,0.1)', margin: '0 4px' }} />
- 
+
             <motion.button
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
@@ -1510,7 +1506,7 @@ function App() {
 
           {/* Bottom Section 2: Seek Bar (Only for YouTube) */}
           {backgrounds[bgIndex]?.startsWith('youtube:') && (
-            <div style={{ 
+            <div style={{
               marginTop: '4px',
               padding: '8px 12px 12px',
               width: '100%',
@@ -1593,9 +1589,9 @@ function App() {
         {activeBookmark ? (
           <div style={{ cursor: 'grabbing', transform: 'scale(1.08) rotate(2deg)', filter: 'drop-shadow(0 24px 48px rgba(0,0,0,0.7)) drop-shadow(0 0 24px rgba(124,77,255,0.5))' }}>
             {activeBookmark.type === 'folder' ? (
-              <FolderCard id={activeBookmark.id} title={activeBookmark.title} children={bookmarks.filter(b => b.parentId === activeBookmark.id)} onContextMenu={() => {}} onClick={() => {}} />
+              <FolderCard id={activeBookmark.id} title={activeBookmark.title} children={bookmarks.filter(b => b.parentId === activeBookmark.id)} onContextMenu={() => { }} onClick={() => { }} />
             ) : (
-              <BookmarkCard {...activeBookmark} onClick={() => {}} onContextMenu={() => {}} />
+              <BookmarkCard {...activeBookmark} onClick={() => { }} onContextMenu={() => { }} />
             )}
           </div>
         ) : null}
@@ -1693,9 +1689,9 @@ function App() {
           onEdit={() => handleEditRequest(contextMenu.id)}
           onExpand={() => setExpandedId(contextMenu.id)}
           onSelectIcon={() => {
-            setSelectedBookmarkIds(prev => 
-              prev.includes(contextMenu.id) 
-                ? prev.filter(id => id !== contextMenu.id) 
+            setSelectedBookmarkIds(prev =>
+              prev.includes(contextMenu.id)
+                ? prev.filter(id => id !== contextMenu.id)
                 : [...prev, contextMenu.id]
             );
           }}
@@ -1712,16 +1708,16 @@ function App() {
             const id = contextMenu.id;
             const bookmark = bookmarks.find(b => b.id === id);
             if (!bookmark || !bookmark.parentId) return;
-            
+
             const parentFolder = bookmarks.find(b => b.id === bookmark.parentId);
             const grandparentId = parentFolder?.parentId || null;
-            
+
             await updateDoc(doc(db, 'bookmarks', id), {
               parentId: grandparentId ? grandparentId : deleteField(),
               page: grandparentId ? 'hidden' : (parentFolder?.page || 'dashboard'),
               order: bookmarks.filter(b => grandparentId ? b.parentId === grandparentId : !b.parentId).length
             });
-            
+
             if (expandedFolderId === bookmark.parentId) {
               // Optionally stay or go back. The user said "send icon back", usually implies moving it OUT of current view.
             }
@@ -1731,9 +1727,9 @@ function App() {
             if (currentSelected.length > 0) {
               const batch = writeBatch(db);
               currentSelected.forEach(id => {
-                batch.update(doc(db, 'bookmarks', id), { 
-                  parentId: contextMenu.id, 
-                  page: 'hidden' 
+                batch.update(doc(db, 'bookmarks', id), {
+                  parentId: contextMenu.id,
+                  page: 'hidden'
                 });
               });
               await batch.commit();
@@ -1745,11 +1741,11 @@ function App() {
             const children = bookmarks.filter(b => b.parentId === folderId);
             const folder = bookmarks.find(b => b.id === folderId);
             const targetParentId = folder?.parentId || null;
-            
+
             const batch = writeBatch(db);
             children.forEach(child => {
-              batch.update(doc(db, 'bookmarks', child.id), { 
-                parentId: targetParentId ? targetParentId : deleteField(), 
+              batch.update(doc(db, 'bookmarks', child.id), {
+                parentId: targetParentId ? targetParentId : deleteField(),
                 page: targetParentId ? 'hidden' : (folder?.page || 'dashboard')
               });
             });
@@ -1762,12 +1758,12 @@ function App() {
 
             const targetOrder = targetBookmark.order ?? 0;
             const parentId = expandedFolderId || targetBookmark.parentId || null;
-            
+
             const folderRef = await addDoc(collection(db, 'bookmarks'), {
-              title: 'Group', 
-              url: '', 
-              type: 'folder', 
-              order: targetOrder, 
+              title: 'Group',
+              url: '',
+              type: 'folder',
+              order: targetOrder,
               page: parentId ? 'hidden' : activePage,
               workspaceId: activeWorkspaceId,
               parentId: parentId
@@ -1776,14 +1772,14 @@ function App() {
             const batch = writeBatch(db);
             const currentSelected = selectedBookmarkIdsRef.current;
             const idsToMove = Array.from(new Set([...currentSelected, contextMenu.id]));
-            
+
             idsToMove.forEach(id => {
-              batch.update(doc(db, 'bookmarks', id), { 
-                parentId: folderRef.id, 
-                page: 'hidden' 
+              batch.update(doc(db, 'bookmarks', id), {
+                parentId: folderRef.id,
+                page: 'hidden'
               });
             });
-            
+
             await batch.commit();
             setSelectedBookmarkIds([]);
           }}

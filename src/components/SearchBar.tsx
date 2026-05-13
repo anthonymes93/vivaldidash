@@ -47,7 +47,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ preview, goal, goalCycleCount, go
   const [query, setQuery] = useState('');
   const [accentColor, setAccentColor] = useState('#7c4dff');
   const [shouldMarquee, setShouldMarquee] = useState(false);
-  const [scrollDistance, setScrollDistance] = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);
   const [textWidth, setTextWidth] = useState(0);
   const [isMarqueeActive, setIsMarqueeActive] = useState(false);
@@ -82,12 +81,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ preview, goal, goalCycleCount, go
       setTextWidth(tWidth);
       const isOverflowing = tWidth > cWidth;
       setShouldMarquee(isOverflowing);
-      if (isOverflowing) {
-        setScrollDistance(tWidth - cWidth);
-      }
     } else {
       setShouldMarquee(false);
-      setScrollDistance(0);
       setContainerWidth(0);
       setTextWidth(0);
     }
