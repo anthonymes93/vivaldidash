@@ -31,6 +31,10 @@ interface CalendarWidgetProps {
   pauseSecondsLeft?: number;
   onPauseToggle?: () => void;
   onCancelPause?: () => void;
+  activeTab?: 'calendar' | 'notes';
+  onTabChange?: (tab: 'calendar' | 'notes') => void;
+  isCollapsed?: boolean;
+  onCollapseChange?: (collapsed: boolean) => void;
 }
 
 const ROTATE_INTERVAL = 5000;
@@ -41,15 +45,17 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({
   isPaused = false,
   pauseSecondsLeft = 0,
   onPauseToggle,
-  onCancelPause
+  onCancelPause,
+  activeTab = 'calendar',
+  onTabChange,
+  isCollapsed = true,
+  onCollapseChange
 }) => {
   const [allEvents, setAllEvents] = useState<CalendarEvent[]>([]);
-  const [isCollapsed, setIsCollapsed] = useState(true);
   const [notes, setNotes] = useState('');
   const [scratchpad, setScratchpad] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingScratch, setIsSavingScratch] = useState(false);
-  const [activeTab, setActiveTab] = useState<'calendar' | 'notes'>('calendar');
   const [isTyping, setIsTyping] = useState(false);
 
   const rotationRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -95,11 +101,12 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({
 
   // ── Scratchpad (general) ───────────────────────────────────────────
   useEffect(() => {
-    getDoc(doc(db, 'settings', 'widget_notes')).then((snap) => {
+    const unsub = onSnapshot(doc(db, 'settings', 'widget_notes'), (snap) => {
       if (snap.exists()) {
         setScratchpad(snap.data()?.content || '');
       }
     });
+    return () => unsub();
   }, []);
 
   // Resize textarea whenever the notes tab becomes visible or content changes
@@ -135,9 +142,9 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({
   const startRotation = useCallback(() => {
     if (rotationRef.current) clearInterval(rotationRef.current);
     rotationRef.current = setInterval(() => {
-      setActiveTab(prev => prev === 'calendar' ? 'notes' : 'calendar');
+      if (onTabChange) onTabChange(activeTab === 'calendar' ? 'notes' : 'calendar');
     }, ROTATE_INTERVAL);
-  }, []);
+  }, [activeTab, onTabChange]);
 
   useEffect(() => {
     if (hoveredBookmark || isTyping || isPaused) {
@@ -190,7 +197,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({
   const handleManualSwitch = (tab: 'calendar' | 'notes') => {
     // Cancel pause when user manually switches
     if (onCancelPause) onCancelPause();
-    setActiveTab(tab);
+    if (onTabChange) onTabChange(tab);
     startRotation();
   };
 
@@ -390,7 +397,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({
                   style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
                 >
                   {/* Calendar header */}
-                  <motion.div layout onClick={() => setIsCollapsed(!isCollapsed)} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                  <motion.div layout onClick={() => onCollapseChange?.(!isCollapsed)} style={{ cursor: 'pointer', userSelect: 'none' }}>
                     <AnimatePresence mode="wait">
                       {isCollapsed ? (
                         <motion.div key="collapsed" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}

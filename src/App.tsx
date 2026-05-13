@@ -174,6 +174,8 @@ function App() {
   const [isEditingDesc, setIsEditingDesc] = useState(false);
   const [editingDescValue, setEditingDescValue] = useState('');
   const [goalCycleCount, setGoalCycleCount] = useState(0);
+  const [activeWidgetTab, setActiveWidgetTab] = useState<'calendar' | 'notes'>('calendar');
+  const [isWidgetCollapsed, setIsWidgetCollapsed] = useState(true);
 
   // Widget Pause Timer (lives in App to survive widget unmounting when in folders)
   useEffect(() => {
@@ -425,6 +427,8 @@ function App() {
         if (data.isPaused !== undefined) setIsPaused(data.isPaused);
         if (data.isZenMode !== undefined) setIsZenMode(data.isZenMode);
         if (data.expandedFolderId !== undefined) setExpandedFolderId(data.expandedFolderId);
+        if (data.activeWidgetTab) setActiveWidgetTab(data.activeWidgetTab);
+        if (data.isWidgetCollapsed !== undefined) setIsWidgetCollapsed(data.isWidgetCollapsed);
 
         // Sync Widget Pause Timer
         if (data.widgetPauseUntil) {
@@ -1443,6 +1447,10 @@ function App() {
                         onCancelPause={() => {
                           updateDashboard({ isWidgetPaused: false, widgetPauseUntil: 0 });
                         }}
+                        activeTab={activeWidgetTab}
+                        onTabChange={(tab) => updateDashboard({ activeWidgetTab: tab })}
+                        isCollapsed={isWidgetCollapsed}
+                        onCollapseChange={(collapsed) => updateDashboard({ isWidgetCollapsed: collapsed })}
                       />
                     )}
                   </div>
