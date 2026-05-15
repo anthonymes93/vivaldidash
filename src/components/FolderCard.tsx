@@ -27,8 +27,6 @@ const FolderCard: React.FC<FolderCardProps> = ({ id, title, children, onContextM
   const scale = size / 120;
   return (
     <motion.div
-      layoutId={`card-${id}`}
-      transition={{ type: 'spring', damping: 25, stiffness: 150 }}
       whileHover={{ y: -5 * scale }}
       className="glass-card folder-card"
       style={{

@@ -34,8 +34,6 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({
 
   return (
     <motion.div
-      layoutId={`card-${id}`}
-      transition={{ type: 'spring', damping: 20, stiffness: 200 }}
       whileHover={{ 
         y: (noBackground || isFullCover) ? -15 : -5, 
         scale: (noBackground || isFullCover) ? 1.4 : 1.1,
@@ -108,9 +106,7 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({
             {notes || 'Empty Note'}
           </div>
         ) : (
-          <motion.div
-            layoutId={`icon-container-${id}`}
-            transition={{ type: 'spring', damping: 25, stiffness: 150 }}
+          <div
             style={{
               width: (noBackground || isFullCover) ? '100%' : `${48 * scale}px`,
               height: (noBackground || isFullCover) ? '100%' : `${48 * scale}px`,
@@ -132,7 +128,7 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({
               size={(noBackground || isFullCover) ? size : 48 * scale}
               noBackground={true}
             />
-          </motion.div>
+          </div>
         )}
    
         {!hideTitle && !isFullCover && type !== 'note' && (

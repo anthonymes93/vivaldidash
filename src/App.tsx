@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   DndContext,
   closestCenter,
+  closestCorners,
   PointerSensor,
   TouchSensor,
   useSensor,
@@ -80,7 +81,7 @@ interface Workspace {
   name: string;
 }
 
-const PAGE_IDS = ['dashboard', 'calendar'];
+const PAGE_IDS: string[] = []; // Disabled for stability during reorder debugging
 
 const INITIAL_BOOKMARKS: Bookmark[] = [
   { id: 'skool', title: 'Skool', url: 'https://skool.com', order: 0, page: 'dashboard' },
@@ -112,7 +113,7 @@ const INITIAL_BOOKMARKS: Bookmark[] = [
 ];
 
 function App() {
-  const { setNodeRef: setDashboardRef } = useDroppable({ id: 'dashboard' });
+  const { setNodeRef: setDashboardRef } = useDroppable({ id: 'dashboard-background' });
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [gridColumns, setGridColumns] = useState<number>(7);
   const [activePage, setActivePage] = useState('dashboard');
@@ -390,10 +391,7 @@ function App() {
     const unsubBookmarks = onSnapshot(collection(db, 'bookmarks'), (snapshot) => {
       const items: Bookmark[] = [];
       snapshot.forEach((d) => items.push({ id: d.id, ...d.data() } as Bookmark));
-      items.sort((a, b) => {
-        if (a.pinToEnd !== b.pinToEnd) return a.pinToEnd ? 1 : -1;
-        return (a.order ?? 0) - (b.order ?? 0);
-      });
+      items.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
       if (items.length === 0 && isLoading) {
         seedDatabase();
@@ -570,34 +568,9 @@ function App() {
 
   const customCollisionStrategy = (args: any) => {
     if (expandedFolderId) {
-      const { pointerCoordinates } = args;
-      const intersections = closestCenter(args);
-
-      const internalIntersections = intersections.filter((i: any) =>
-        bookmarks.some(b => b.id === i.id && b.parentId === expandedFolderId)
-      );
-
-      // Proximity Ejection: If we are far from the center of the modal, eject
-      // This makes it feel "closer" as requested
-      if (pointerCoordinates) {
-        const screenCenter = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-        const distToCenter = Math.sqrt(
-          Math.pow(pointerCoordinates.x - screenCenter.x, 2) +
-          Math.pow(pointerCoordinates.y - screenCenter.y, 2)
-        );
-
-        // If we are more than 400px from the screen center, eject!
-        if (distToCenter > 400) return [{ id: 'remove-from-folder' }];
-      }
-
-      if (internalIntersections.length === 0) {
-        return [{ id: 'remove-from-folder' }];
-      }
-
-      return internalIntersections;
+      return closestCenter(args);
     }
-
-    return closestCenter(args);
+    return closestCorners(args);
   };
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -613,34 +586,33 @@ function App() {
     const overBookmark = bookmarks.find(b => b.id === overId);
 
     // Eject from folder logic: if dropped outside or on the remove zone
-    if (!overId || overId === 'remove-from-folder' || overId === 'dashboard') {
-      if (draggedBookmark && draggedBookmark.parentId) {
-        const folderId = draggedBookmark.parentId;
-        const folder = bookmarks.find(b => b.id === folderId);
+    if ((!overId || overId === 'remove-from-folder' || overId === 'dashboard-background') && draggedBookmark && draggedBookmark.parentId) {
+      const folderId = draggedBookmark.parentId;
+      const folder = bookmarks.find(b => b.id === folderId);
 
-        await updateDoc(doc(db, 'bookmarks', draggedBookmarkId), {
+      // Move to the current page and remove parent
+      await updateDoc(doc(db, 'bookmarks', draggedBookmarkId), {
+        parentId: null,
+        page: activePage,
+        order: bookmarks.filter(b => (b.page || 'dashboard') === activePage && !b.parentId && (b.workspaceId === activeWorkspaceId || (!b.workspaceId && activeWorkspaceId === 'default'))).length
+      });
+
+      // Auto-dissolve: if only 1 child remains after ejection, promote it and delete folder
+      const remainingChildren = bookmarks.filter(b => b.parentId === folderId && b.id !== draggedBookmarkId);
+      if (remainingChildren.length === 1) {
+        await updateDoc(doc(db, 'bookmarks', remainingChildren[0].id), {
           parentId: null,
-          page: activePage,
-          order: bookmarks.filter(b => (b.page || 'dashboard') === activePage && !b.parentId).length
+          page: folder?.page || 'dashboard',
+          order: folder?.order ?? 0,
         });
-
-        // Auto-dissolve: if only 1 child remains after ejection, promote it and delete folder
-        const remainingChildren = bookmarks.filter(b => b.parentId === folderId && b.id !== draggedBookmarkId);
-        if (remainingChildren.length === 1) {
-          await updateDoc(doc(db, 'bookmarks', remainingChildren[0].id), {
-            parentId: null,
-            page: folder?.page || 'dashboard',
-            order: folder?.order ?? 0,
-          });
-          await deleteDoc(doc(db, 'bookmarks', folderId));
-        }
-
-        setExpandedFolderId(null);
+        await deleteDoc(doc(db, 'bookmarks', folderId));
       }
+
+      setExpandedFolderId(null);
       return;
     }
 
-    if (PAGE_IDS.includes(overId)) {
+    if (overId && PAGE_IDS.includes(overId)) {
       const targetPage = overId;
       const bookmark = bookmarks.find(b => b.id === draggedBookmarkId);
       if (bookmark && (bookmark.page || 'dashboard') !== targetPage) {
@@ -651,12 +623,18 @@ function App() {
       return;
     }
 
-    if (overId === 'dock' || overId === 'dock_center' || overId === 'dock_right' || (overBookmark && (overBookmark.page === 'dock' || overBookmark.page === 'dock_center' || overBookmark.page === 'dock_right'))) {
+    // Dock drop logic disabled for stability during reorder debugging
+    if (false && (overId === 'dock' || overId === 'dock_center' || overId === 'dock_right' || (overBookmark && (overBookmark.page === 'dock' || overBookmark.page === 'dock_center' || overBookmark.page === 'dock_right')))) {
       const targetPage = (overId === 'dock' || overId === 'dock_center' || overId === 'dock_right') ? overId as string : overBookmark!.page!;
-      const targetDockBookmarks = bookmarks.filter(b => b.page === targetPage).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      const targetDockBookmarks = bookmarks.filter(b => b.page === targetPage).sort((a, b) => {
+        if (a.pinToEnd !== b.pinToEnd) return a.pinToEnd ? 1 : -1;
+        return (a.order ?? 0) - (b.order ?? 0);
+      });
+
+      const batch = writeBatch(db);
 
       if (overId === 'dock' || overId === 'dock_center' || overId === 'dock_right') {
-        await updateDoc(doc(db, 'bookmarks', draggedBookmarkId), {
+        batch.update(doc(db, 'bookmarks', draggedBookmarkId), {
           page: targetPage,
           parentId: null,
           order: targetDockBookmarks.length
@@ -667,13 +645,14 @@ function App() {
 
         if (oldIdx !== -1) {
           const reordered = arrayMove(targetDockBookmarks, oldIdx, newIdx);
-          reordered.forEach(async (b, idx) => {
-            await updateDoc(doc(db, 'bookmarks', b.id), { order: idx });
+          reordered.forEach((b, idx) => {
+            batch.update(doc(db, 'bookmarks', b.id), { order: idx });
           });
         } else {
-          await updateDoc(doc(db, 'bookmarks', draggedBookmarkId), { page: targetPage, parentId: null, order: 0 });
+          batch.update(doc(db, 'bookmarks', draggedBookmarkId), { page: targetPage, parentId: null, order: 0 });
         }
       }
+      await batch.commit();
       return;
     }
 
@@ -684,28 +663,74 @@ function App() {
         await updateDoc(doc(db, 'bookmarks', draggedBookmarkId), {
           page: activePage,
           parentId: null,
-          order: rootBookmarks.length
+          order: bookmarks.filter(b => (b.page || 'dashboard') === activePage && !b.parentId && (b.workspaceId === activeWorkspaceId || (!b.workspaceId && activeWorkspaceId === 'default'))).length
         });
         return;
       }
     }
 
-    if (draggedBookmarkId === overId) return;
+    // 5. Normal Reordering (within the same container)
+    let targetId = overId;
+    
+    const pageBookmarks = bookmarks.filter(b => 
+      (expandedFolderId 
+        ? b.parentId === expandedFolderId 
+        : ((b.page || 'dashboard') === activePage && !b.parentId)) &&
+      (b.workspaceId === activeWorkspaceId || (!b.workspaceId && activeWorkspaceId === 'default'))
+    );
 
-
-
-    const pageBookmarks = bookmarks.filter(b => (b.page || 'dashboard') === activePage && !b.parentId);
     const oldIndex = pageBookmarks.findIndex(b => b.id === draggedBookmarkId);
-    const newIndex = pageBookmarks.findIndex(b => b.id === overId);
-    if (oldIndex === -1 || newIndex === -1) return;
+    let newIndex = pageBookmarks.findIndex(b => b.id === targetId);
+    
+    // If we didn't drop on a specific sortable item (e.g. dropped on background or top bar), 
+    // find the logical nearest neighbor to determine the new position.
+    if (newIndex === -1) {
+      const activeRect = event.active.rect.current?.translated;
+      if (activeRect) {
+        const ax = activeRect.left + activeRect.width / 2;
+        const ay = activeRect.top + activeRect.height / 2;
+        
+        let minD = Infinity;
+        let closestIdx = -1;
+        
+        pageBookmarks.forEach((b, idx) => {
+          const el = document.getElementById(b.id);
+          if (el) {
+            const r = el.getBoundingClientRect();
+            const cx = r.left + r.width / 2;
+            const cy = r.top + r.height / 2;
+            const d = Math.sqrt(Math.pow(ax - cx, 2) + Math.pow(ay - cy, 2));
+            if (d < minD) { minD = d; closestIdx = idx; }
+          }
+        });
+        if (closestIdx !== -1) newIndex = closestIdx;
+      }
+    }
 
-    const reordered = arrayMove(pageBookmarks, oldIndex, newIndex);
-    const otherBookmarks = bookmarks.filter(b => !reordered.find(r => r.id === b.id));
-    setBookmarks([...otherBookmarks, ...reordered]);
+    if (newIndex === -1 || oldIndex === -1 || (oldIndex === newIndex && targetId !== draggedBookmarkId)) return;
 
-    reordered.forEach(async (b, index) => {
-      if (b.order !== index) await updateDoc(doc(db, 'bookmarks', b.id), { order: index });
+    // Special Case: Folder dropping (Disabled for stability during reorder debugging)
+    /*
+    const targetBookmark = bookmarks.find(b => b.id === targetId);
+    if (targetBookmark && targetBookmark.type === 'folder' && draggedBookmarkId !== targetId) {
+      await updateDoc(doc(db, 'bookmarks', draggedBookmarkId), {
+        parentId: targetId,
+        page: 'hidden',
+        order: bookmarks.filter(b => b.parentId === targetId).length
+      });
+      return;
+    }
+    */
+
+    // Perform Reorder
+    const reordered = arrayMove([...pageBookmarks], oldIndex, newIndex);
+    const batch = writeBatch(db);
+    
+    reordered.forEach((b, index) => {
+      batch.update(doc(db, 'bookmarks', b.id), { order: index });
     });
+    
+    await batch.commit();
   };
 
   const handleContextMenu = useCallback((e: React.MouseEvent, id: string) => {
@@ -891,7 +916,7 @@ function App() {
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={customCollisionStrategy}
+      collisionDetection={closestCenter}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
@@ -1823,6 +1848,42 @@ function App() {
             setSelectedBookmarkIds([]);
           }}
         />
+      )}
+      {activeId && (
+        <DragOverlay adjustScale={true} dropAnimation={null}>
+          {(() => {
+            const activeBookmark = bookmarks.find(b => b.id === activeId);
+            if (!activeBookmark) return null;
+            const scale = (iconSize || 120) / 120;
+            return (
+              <div style={{ 
+                transform: 'scale(1.05)', 
+                opacity: 0.9,
+                cursor: 'grabbing',
+                pointerEvents: 'none'
+              }}>
+                {activeBookmark.type === 'folder' ? (
+                  <FolderCard
+                    id={activeBookmark.id}
+                    title={activeBookmark.title}
+                    children={bookmarks.filter(b => b.parentId === activeBookmark.id)}
+                    onContextMenu={() => {}}
+                    onClick={() => {}}
+                    size={iconSize}
+                    hideTitle={false}
+                  />
+                ) : (
+                  <BookmarkCard
+                    {...activeBookmark}
+                    onContextMenu={() => {}}
+                    onClick={() => {}}
+                    size={iconSize}
+                  />
+                )}
+              </div>
+            );
+          })()}
+        </DragOverlay>
       )}
     </DndContext>
   );
