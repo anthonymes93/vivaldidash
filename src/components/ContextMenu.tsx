@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState, useLayoutEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trash2, Edit3, Maximize2, CheckSquare, FolderInput, Layers, FolderPlus, StickyNote, ArrowUp, ExternalLink } from 'lucide-react';
 
@@ -49,6 +49,31 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
 
+  const [pos, setPos] = useState({ left: x, top: y });
+
+  useLayoutEffect(() => {
+    if (menuRef.current) {
+      const rect = menuRef.current.getBoundingClientRect();
+      const winW = window.innerWidth;
+      const winH = window.innerHeight;
+      
+      let newLeft = x;
+      let newTop = y;
+
+      // Check if menu goes off the right edge
+      if (x + rect.width > winW) {
+        newLeft = Math.max(8, winW - rect.width - 8);
+      }
+
+      // Check if menu goes off the bottom edge
+      if (y + rect.height > winH) {
+        newTop = Math.max(8, winH - rect.height - 8);
+      }
+
+      setPos({ left: newLeft, top: newTop });
+    }
+  }, [x, y, isOpen]);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -74,8 +99,8 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
           exit={{ opacity: 0, scale: 0.95 }}
           style={{
             position: 'fixed',
-            top: y,
-            left: x,
+            top: pos.top,
+            left: pos.left,
             zIndex: 2000,
             minWidth: '200px',
             padding: '8px',

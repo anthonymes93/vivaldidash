@@ -63,11 +63,11 @@ function MegaMenu() {
         right: 0,
         margin: '0 auto',
         width: 'min(900px, 92%)',
-        background: 'rgba(8, 8, 12, 0.97)',
-        backdropFilter: 'blur(48px)',
+        background: 'rgba(13, 13, 18, 0.98)',
+        backdropFilter: 'blur(20px)',
         borderRadius: '32px',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
-        boxShadow: '0 40px 100px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05)',
+        border: '1px solid rgba(255, 255, 255, 0.12)',
+        boxShadow: '0 40px 100px rgba(0, 0, 0, 0.8)',
         padding: '40px',
         display: 'grid',
         gridTemplateColumns: window.innerWidth < 768 ? '1fr' : '1fr 1fr 1fr',
@@ -303,9 +303,6 @@ const TopBar: React.FC<TopBarProps> = ({
 
   return (
     <motion.div
-      initial={{ y: -100 }}
-      animate={{ y: 0 }}
-      transition={{ type: 'spring', damping: 20, stiffness: 100 }}
       onMouseLeave={() => setHoveredPageId(null)}
       style={{
         position: 'fixed',

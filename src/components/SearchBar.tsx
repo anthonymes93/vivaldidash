@@ -56,7 +56,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ preview, goal, goalCycleCount, go
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
-      window.location.href = `https://search.yahoo.com/search?p=${encodeURIComponent(query)}`;
+      window.location.href = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
     }
   };
 
@@ -252,7 +252,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ preview, goal, goalCycleCount, go
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder={(preview || (goal && goal.length > 0 && isMarqueeActive)) ? "" : "Search Yahoo..."}
+          placeholder={(preview || (goal && goal.length > 0 && isMarqueeActive)) ? "" : "Search Google..."}
           style={{
             width: '100%',
             padding: '12px 16px',

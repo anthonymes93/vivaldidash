@@ -7,7 +7,11 @@ interface Bookmark {
   id: string;
   title: string;
   url: string;
-  type?: 'bookmark' | 'folder';
+  type?: 'bookmark' | 'folder' | 'note';
+  notes?: string;
+  quickNote?: string;
+  useQuickNoteOnHover?: boolean;
+  pinToEnd?: boolean;
   parentId?: string;
   page?: string;
   iconType?: 'favicon' | 'lucide' | 'custom';

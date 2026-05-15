@@ -56,9 +56,12 @@ interface Bookmark {
   title: string;
   url: string;
   notes?: string;
+  quickNote?: string;
+  useQuickNoteOnHover?: boolean;
+  pinToEnd?: boolean;
   order?: number;
   page?: string;
-  type?: 'bookmark' | 'folder';
+  type?: 'bookmark' | 'folder' | 'note';
   parentId?: string;
   iconType?: 'favicon' | 'lucide' | 'custom';
   lucideIcon?: string;
@@ -387,7 +390,10 @@ function App() {
     const unsubBookmarks = onSnapshot(collection(db, 'bookmarks'), (snapshot) => {
       const items: Bookmark[] = [];
       snapshot.forEach((d) => items.push({ id: d.id, ...d.data() } as Bookmark));
-      items.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      items.sort((a, b) => {
+        if (a.pinToEnd !== b.pinToEnd) return a.pinToEnd ? 1 : -1;
+        return (a.order ?? 0) - (b.order ?? 0);
+      });
 
       if (items.length === 0 && isLoading) {
         seedDatabase();
@@ -748,7 +754,7 @@ function App() {
       updateDashboard({ expandedFolderId: id });
       setHoveredBookmark(null);
     }
-    else if (bookmark.isDashboardWidget) setExpandedId(id);
+    else if (bookmark.isDashboardWidget || bookmark.type === 'note') setExpandedId(id);
     else if (e?.shiftKey) setExpandedId(id); // Allow shift+click to open notes for any icon
     else window.location.href = bookmark.url;
   };
@@ -765,9 +771,18 @@ function App() {
     (b.workspaceId === activeWorkspaceId || (!b.workspaceId && activeWorkspaceId === 'default'))
   );
 
-  const dockBookmarks = bookmarks.filter(b => b.page === 'dock' && (b.workspaceId === activeWorkspaceId || (!b.workspaceId && activeWorkspaceId === 'default'))).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-  const dockCenterBookmarks = bookmarks.filter(b => b.page === 'dock_center' && (b.workspaceId === activeWorkspaceId || (!b.workspaceId && activeWorkspaceId === 'default'))).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-  const dockRightBookmarks = bookmarks.filter(b => b.page === 'dock_right' && (b.workspaceId === activeWorkspaceId || (!b.workspaceId && activeWorkspaceId === 'default'))).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const dockBookmarks = bookmarks.filter(b => b.page === 'dock' && (b.workspaceId === activeWorkspaceId || (!b.workspaceId && activeWorkspaceId === 'default'))).sort((a, b) => {
+    if (a.pinToEnd !== b.pinToEnd) return a.pinToEnd ? 1 : -1;
+    return (a.order ?? 0) - (b.order ?? 0);
+  });
+  const dockCenterBookmarks = bookmarks.filter(b => b.page === 'dock_center' && (b.workspaceId === activeWorkspaceId || (!b.workspaceId && activeWorkspaceId === 'default'))).sort((a, b) => {
+    if (a.pinToEnd !== b.pinToEnd) return a.pinToEnd ? 1 : -1;
+    return (a.order ?? 0) - (b.order ?? 0);
+  });
+  const dockRightBookmarks = bookmarks.filter(b => b.page === 'dock_right' && (b.workspaceId === activeWorkspaceId || (!b.workspaceId && activeWorkspaceId === 'default'))).sort((a, b) => {
+    if (a.pinToEnd !== b.pinToEnd) return a.pinToEnd ? 1 : -1;
+    return (a.order ?? 0) - (b.order ?? 0);
+  });
 
   // Dynamic icon sizing for docks - based on TOTAL icons across all sections
   const totalDockIcons = dockBookmarks.length + dockCenterBookmarks.length + dockRightBookmarks.length;
