@@ -85,12 +85,12 @@ const BookmarkIcon: React.FC<BookmarkIconProps> = ({
       justifyContent: 'center',
       background: noBackground ? 'transparent' : 'rgba(255, 255, 255, 0.05)',
       borderRadius: noBackground ? '0' : `${Math.max(8, size / 4)}px`,
-      padding: noBackground ? '0' : `${size * 0.2}px`,
+      padding: noBackground ? '0' : `${size * 0.28}px`,
     }}>
       <img
         src={faviconUrl}
         alt={title}
-        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+        style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '8px' }}
         onError={(e) => {
           (e.target as HTMLImageElement).src = fallbackUrl;
         }}
