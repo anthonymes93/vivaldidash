@@ -16,6 +16,7 @@ interface Bookmark {
   useCoverIcon?: boolean;
   isFullCover?: boolean;
   notes?: string;
+  quickNote?: string;
   useQuickNoteOnHover?: boolean;
   pinToEnd?: boolean;
 }
@@ -236,8 +237,6 @@ const AddBookmarkModal: React.FC<AddBookmarkModalProps> = ({
         useCoverIcon: isFolder ? useCoverIcon : undefined,
         isFullCover: isFolder ? isFullCover : undefined,
         type: bookmarkType,
-        useCoverIcon: isFolder ? useCoverIcon : undefined,
-        isFullCover: isFolder ? isFullCover : undefined,
         notes: isNote ? noteContent : (editData?.notes || ''),
         quickNote,
         useQuickNoteOnHover,

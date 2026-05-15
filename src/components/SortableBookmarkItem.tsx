@@ -1,8 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
-import { useDndContext } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { motion } from 'framer-motion';
 import BookmarkCard from './BookmarkCard';
 import FolderCard from './FolderCard';
 

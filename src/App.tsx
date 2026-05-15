@@ -574,12 +574,7 @@ function App() {
   };
 
 
-  const customCollisionStrategy = (args: any) => {
-    if (expandedFolderId) {
-      return closestCenter(args);
-    }
-    return closestCorners(args);
-  };
+
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
@@ -1935,7 +1930,7 @@ function App() {
           {(() => {
             const activeBookmark = bookmarks.find(b => b.id === activeId);
             if (!activeBookmark) return null;
-            const scale = (iconSize || 120) / 120;
+
             return (
               <div style={{ 
                 transform: 'scale(1.05)', 
