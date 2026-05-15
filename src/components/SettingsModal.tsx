@@ -253,6 +253,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                             </motion.div>
                           )}
                         </AnimatePresence>
+                      </div>
                     </SectionCard>
 
                     <SectionCard>

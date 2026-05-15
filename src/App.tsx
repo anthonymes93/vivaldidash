@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Plus, Play, Pause, ChevronLeft, ChevronRight, Image as ImageIcon } from 'lucide-react';
+import { Plus, Play, Pause, ChevronLeft, ChevronRight, Image as ImageIcon, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   DndContext,
@@ -131,6 +131,7 @@ function App() {
   const [bgContextMenu, setBgContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [isUnhideModalOpen, setIsUnhideModalOpen] = useState(false);
   const [useQuickNoteOnHover, setUseQuickNoteOnHover] = useState(false);
+  const [isBgSwitcherOpen, setIsBgSwitcherOpen] = useState(false);
   const [keyboardSelectedId, setKeyboardSelectedId] = useState<string | null>(null);
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
 
@@ -1066,15 +1067,13 @@ function App() {
               transition={{ duration: 0.5 }}
               style={{
                 width: '100%',
-                minHeight: '100vh',
-                height: 'auto',
+                height: '100vh',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                paddingTop: activePage === 'whiteboard' ? '0' : '15vh',
-                paddingBottom: activePage === 'whiteboard' ? '0' : '100px',
-                overflowY: activePage === 'whiteboard' ? 'hidden' : 'auto',
-                overflowX: 'hidden',
+                paddingTop: activePage === 'whiteboard' ? '0' : '12vh',
+                paddingBottom: activePage === 'whiteboard' ? '0' : '180px',
+                overflowY: 'hidden',
                 zIndex: 1,
               }}
             >
@@ -1502,116 +1501,164 @@ function App() {
 
 
         {/* Perfectly centered background controls */}
-        <motion.div
-          id="bottom-pill"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{
-            opacity: isZenMode ? 0 : 1,
-            y: isZenMode ? 40 : 0,
-            pointerEvents: isZenMode ? 'none' : 'auto'
-          }}
-          transition={{ duration: 0.5 }}
-          style={{
-            position: 'fixed',
-            bottom: '24px',
-            left: activePage === 'dashboard' ? 'calc(50% - 180px)' : '50%',
-            transform: 'translateX(-50%)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            padding: '8px',
-            background: 'rgba(255, 255, 255, 0.05)',
-            backdropFilter: 'blur(30px)',
-            borderRadius: '24px',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
-            zIndex: 10,
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Top Section: Main Controls */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '4px' }}>
+        <AnimatePresence>
+          {!isBgSwitcherOpen ? (
             <motion.button
-              whileHover={{ scale: 1.1 }}
+              key="bg-toggle"
+              initial={{ opacity: 0, scale: 0.8, y: 20 }}
+              animate={{ opacity: isZenMode ? 0 : 1, scale: 1, y: isZenMode ? 40 : 0 }}
+              exit={{ opacity: 0, scale: 0.8, y: 20 }}
+              whileHover={{ scale: 1.1, background: 'rgba(255, 255, 255, 0.15)' }}
               whileTap={{ scale: 0.9 }}
-              onClick={prevBg}
-              className="control-btn"
-              style={{ color: 'white', cursor: 'pointer', padding: '10px' }}
-            >
-              <ChevronLeft size={20} />
-            </motion.button>
-
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={() => updateDashboard({ isPaused: !isPaused })}
-              className="control-btn"
-              style={{ color: 'white', cursor: 'pointer', padding: '10px' }}
-            >
-              {isPaused ? <Play size={20} fill="white" /> : <Pause size={20} fill="white" />}
-            </motion.button>
-
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={nextBg}
-              className="control-btn"
-              style={{ color: 'white', cursor: 'pointer', padding: '10px' }}
-            >
-              <ChevronRight size={20} />
-            </motion.button>
-
-            <div style={{ height: '20px', width: '1px', background: 'rgba(255,255,255,0.1)', margin: '0 4px' }} />
-
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={() => setIsBgModalOpen(true)}
-              title="Choose Background"
-              className="control-btn"
-              style={{ color: 'white', cursor: 'pointer', padding: '10px' }}
+              onClick={() => setIsBgSwitcherOpen(true)}
+              style={{
+                position: 'fixed',
+                bottom: '24px',
+                right: '24px',
+                width: '48px',
+                height: '48px',
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.05)',
+                backdropFilter: 'blur(30px)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white',
+                cursor: 'pointer',
+                zIndex: 10,
+                boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+              }}
             >
               <ImageIcon size={20} />
             </motion.button>
-          </div>
+          ) : (
+            <motion.div
+              key="bg-switcher-full"
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ 
+                opacity: isZenMode ? 0 : 1, 
+                scale: 1, 
+                y: isZenMode ? 40 : 0,
+                pointerEvents: isZenMode ? 'none' : 'auto'
+              }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ type: 'spring', damping: 20, stiffness: 200 }}
+              style={{
+                position: 'fixed',
+                bottom: '24px',
+                right: '24px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                padding: '8px',
+                background: 'rgba(255, 255, 255, 0.05)',
+                backdropFilter: 'blur(30px)',
+                borderRadius: '24px',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
+                zIndex: 10,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Top Section: Main Controls */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px' }}>
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={prevBg}
+                  className="control-btn"
+                  style={{ color: 'white', cursor: 'pointer', padding: '10px' }}
+                >
+                  <ChevronLeft size={20} />
+                </motion.button>
 
-          {/* Bottom Section 2: Seek Bar (Only for YouTube) */}
-          {backgrounds[bgIndex]?.startsWith('youtube:') && (
-            <div style={{
-              marginTop: '4px',
-              padding: '8px 12px 12px',
-              width: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '6px',
-              borderTop: '1px solid rgba(255,255,255,0.05)',
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', opacity: 0.6, letterSpacing: '1px', textTransform: 'uppercase', fontWeight: 600, color: 'white' }}>
-                <span>{formatTime(videoTime.current)} / {formatTime(videoTime.total)}</span>
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => updateDashboard({ isPaused: !isPaused })}
+                  className="control-btn"
+                  style={{ color: 'white', cursor: 'pointer', padding: '10px' }}
+                >
+                  {isPaused ? <Play size={20} fill="white" /> : <Pause size={20} fill="white" />}
+                </motion.button>
+
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={nextBg}
+                  className="control-btn"
+                  style={{ color: 'white', cursor: 'pointer', padding: '10px' }}
+                >
+                  <ChevronRight size={20} />
+                </motion.button>
+
+                <div style={{ height: '20px', width: '1px', background: 'rgba(255,255,255,0.1)', margin: '0 4px' }} />
+
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setIsBgModalOpen(true)}
+                  title="Choose Background"
+                  className="control-btn"
+                  style={{ color: 'white', cursor: 'pointer', padding: '10px' }}
+                >
+                  <ImageIcon size={20} />
+                </motion.button>
+
+                <div style={{ height: '20px', width: '1px', background: 'rgba(255,255,255,0.1)', margin: '0 4px' }} />
+
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setIsBgSwitcherOpen(false)}
+                  title="Collapse"
+                  className="control-btn"
+                  style={{ color: 'rgba(255,255,255,0.5)', cursor: 'pointer', padding: '10px' }}
+                >
+                  <X size={20} />
+                </motion.button>
               </div>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                step="0.1"
-                value={videoProgress}
-                onMouseDown={() => setIsSeeking(true)}
-                onChange={handleSeek}
-                onMouseUp={handleSeekEnd}
-                style={{
+
+              {/* Bottom Section 2: Seek Bar (Only for YouTube) */}
+              {backgrounds[bgIndex]?.startsWith('youtube:') && (
+                <div style={{
+                  marginTop: '4px',
+                  padding: '8px 12px 12px',
                   width: '100%',
-                  height: '4px',
-                  background: `linear-gradient(to right, #7c4dff ${videoProgress}%, rgba(255,255,255,0.1) ${videoProgress}%)`,
-                  borderRadius: '2px',
-                  appearance: 'none',
-                  outline: 'none',
-                  cursor: 'pointer',
-                }}
-                className="video-seek-bar"
-              />
-            </div>
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                  borderTop: '1px solid rgba(255,255,255,0.05)',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', opacity: 0.6, letterSpacing: '1px', textTransform: 'uppercase', fontWeight: 600, color: 'white' }}>
+                    <span>{formatTime(videoTime.current)} / {formatTime(videoTime.total)}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    value={videoProgress}
+                    onMouseDown={() => setIsSeeking(true)}
+                    onChange={handleSeek}
+                    onMouseUp={handleSeekEnd}
+                    style={{
+                      width: '100%',
+                      height: '4px',
+                      background: `linear-gradient(to right, #7c4dff ${videoProgress}%, rgba(255,255,255,0.1) ${videoProgress}%)`,
+                      borderRadius: '2px',
+                      appearance: 'none',
+                      outline: 'none',
+                      cursor: 'pointer',
+                    }}
+                    className="video-seek-bar"
+                  />
+                </div>
+              )}
+            </motion.div>
           )}
-        </motion.div>
+        </AnimatePresence>
 
         <style>{`
           .video-seek-bar::-webkit-slider-thumb {
@@ -1635,25 +1682,7 @@ function App() {
           }
         `}</style>
 
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: isZenMode ? 0 : 0.3 }}
-          transition={{ duration: 0.5 }}
-          style={{
-            position: 'fixed',
-            bottom: '76px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            fontSize: '10px',
-            letterSpacing: '2px',
-            textTransform: 'uppercase',
-            color: 'white',
-            zIndex: 9,
-            pointerEvents: 'none',
-          }}
-        >
-          VivaldiDash
-        </motion.div>
+
       </div>
 
       <DragOverlay dropAnimation={{ duration: 200, easing: 'ease-out' }}>
