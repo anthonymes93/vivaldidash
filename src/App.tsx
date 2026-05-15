@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   DndContext,
   closestCenter,
-  closestCorners,
   PointerSensor,
   TouchSensor,
   useSensor,
