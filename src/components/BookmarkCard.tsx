@@ -101,9 +101,12 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             wordBreak: 'break-word',
-            fontFamily: 'inherit'
+            fontFamily: 'inherit',
+            textDecoration: (useQuickNoteOnHover && quickNote) ? 'underline' : 'none',
+            textUnderlineOffset: '3px',
+            textDecorationColor: 'rgba(255, 255, 255, 0.3)',
           }}>
-            {notes || 'Empty Note'}
+            {isDashboardWidget ? title : (notes || 'Empty Note')}
           </div>
         ) : (
           <div
@@ -151,7 +154,7 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({
 
       {/* Quick Note Hover Overlay */}
       <AnimatePresence>
-        {isHovered && useQuickNoteOnHover && quickNote && (
+        {isHovered && useQuickNoteOnHover && (isDashboardWidget ? notes : quickNote) && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -182,7 +185,7 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({
               WebkitLineClamp: 7,
               WebkitBoxOrient: 'vertical',
             }}>
-              {quickNote}
+              {isDashboardWidget ? (notes || 'No content') : quickNote}
             </span>
           </motion.div>
         )}

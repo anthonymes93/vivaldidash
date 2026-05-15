@@ -24,6 +24,8 @@ interface SettingsModalProps {
   activeWorkspaceId?: string;
   onWorkspaceChange?: (id: string) => void;
   onCreateWorkspace?: (name: string) => void;
+  useQuickNoteOnHover: boolean;
+  onUseQuickNoteOnHoverChange: (val: boolean) => void;
 }
 
 type Tab = 'layout' | 'widget' | 'workspaces';
@@ -107,6 +109,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   widgetPauseMins, onWidgetPauseMinsChange,
   workspaces = [], activeWorkspaceId,
   onWorkspaceChange, onCreateWorkspace,
+  useQuickNoteOnHover, onUseQuickNoteOnHoverChange,
 }) => {
   const [activeTab, setActiveTab] = useState<Tab>('layout');
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
@@ -250,6 +253,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                             </motion.div>
                           )}
                         </AnimatePresence>
+                    </SectionCard>
+
+                    <SectionCard>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <SettingRow label="Quick Note on Hover" hint="Show a short note when hovering over items" />
+                        <Toggle value={useQuickNoteOnHover} onChange={onUseQuickNoteOnHoverChange} />
                       </div>
                     </SectionCard>
                   </motion.div>

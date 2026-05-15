@@ -242,6 +242,8 @@ const LinkPreviewCard = ({ url, onDelete }: { url: string, onDelete: () => void 
 };
 
 const ExpandedView: React.FC<ExpandedViewProps> = ({ bookmark, onClose, onSaveNotes }) => {
+  const [isEditingTitle, setIsEditingTitle] = React.useState(false);
+  const [editingTitleValue, setEditingTitleValue] = React.useState(bookmark.title);
   const handleSetPriority = async (text: string) => {
     await updateDoc(doc(db, 'bookmarks', bookmark.id), { priorityText: text });
   };
@@ -364,11 +366,59 @@ const ExpandedView: React.FC<ExpandedViewProps> = ({ bookmark, onClose, onSaveNo
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            style={{ textAlign: 'center' }}
+            style={{ textAlign: 'center', width: '100%' }}
           >
-            <h2 style={{ fontSize: '24px', fontWeight: 600, marginBottom: '8px' }}>
-              {bookmark.title}
-            </h2>
+            {isEditingTitle ? (
+              <input
+                autoFocus
+                value={editingTitleValue}
+                onChange={(e) => setEditingTitleValue(e.target.value)}
+                onBlur={async () => {
+                  if (editingTitleValue.trim() && editingTitleValue !== bookmark.title) {
+                    await updateDoc(doc(db, 'bookmarks', bookmark.id), { title: editingTitleValue.trim() });
+                  }
+                  setIsEditingTitle(false);
+                }}
+                onKeyDown={async (e) => {
+                  if (e.key === 'Enter') {
+                    if (editingTitleValue.trim() && editingTitleValue !== bookmark.title) {
+                      await updateDoc(doc(db, 'bookmarks', bookmark.id), { title: editingTitleValue.trim() });
+                    }
+                    setIsEditingTitle(false);
+                  } else if (e.key === 'Escape') {
+                    setIsEditingTitle(false);
+                  }
+                }}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '8px',
+                  padding: '4px 12px',
+                  fontSize: '24px',
+                  fontWeight: 600,
+                  color: 'white',
+                  textAlign: 'center',
+                  width: '100%',
+                  outline: 'none',
+                  marginBottom: '8px'
+                }}
+              />
+            ) : (
+              <h2 
+                onClick={() => {
+                  setEditingTitleValue(bookmark.title);
+                  setIsEditingTitle(true);
+                }}
+                style={{ 
+                  fontSize: '24px', 
+                  fontWeight: 600, 
+                  marginBottom: '8px',
+                  cursor: 'pointer'
+                }}
+              >
+                {bookmark.title}
+              </h2>
+            )}
             <a
               href={bookmark.url}
               target="_blank"

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useLayoutEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trash2, Edit3, Maximize2, CheckSquare, FolderInput, Layers, FolderPlus, StickyNote, ArrowUp, ExternalLink } from 'lucide-react';
+import { Trash2, Edit3, Maximize2, CheckSquare, FolderInput, Layers, FolderPlus, StickyNote, ArrowUp, ExternalLink, EyeOff } from 'lucide-react';
 
 interface ContextMenuProps {
   x: number;
@@ -12,6 +12,7 @@ interface ContextMenuProps {
   onRemove: () => void;
   onEdit: () => void;
   onExpand: () => void;
+  onHide: () => void;
   onSelectIcon: () => void;
   onAddSelectedToGroup: () => void;
   onBreakApartGroup: () => void;
@@ -35,6 +36,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
   onRemove,
   onEdit,
   onExpand,
+  onHide,
   onSelectIcon,
   onAddSelectedToGroup,
   onBreakApartGroup,
@@ -174,6 +176,11 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
               <span>Break Apart Group</span>
             </div>
           )}
+
+          <div className="context-menu-item" onClick={() => { onHide(); onClose(); }}>
+            <EyeOff size={16} />
+            <span>Hide Item</span>
+          </div>
 
           <div className="context-menu-item danger" onClick={() => { onRemove(); onClose(); }}>
             <Trash2 size={16} />

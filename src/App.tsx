@@ -50,6 +50,8 @@ import BackgroundSelectorModal from './components/BackgroundSelectorModal';
 import Dock from './components/Dock';
 import GroupNotes from './components/GroupNotes';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import UnhideModal from './components/UnhideModal';
+import BackgroundContextMenu from './components/BackgroundContextMenu';
 import './App.css';
 
 interface Bookmark {
@@ -74,6 +76,7 @@ interface Bookmark {
   workspaceId?: string;
   priorityText?: string;
   description?: string;
+  isHidden?: boolean;
 }
 
 interface Workspace {
@@ -125,6 +128,9 @@ function App() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedFolderId, setExpandedFolderId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; id: string } | null>(null);
+  const [bgContextMenu, setBgContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [isUnhideModalOpen, setIsUnhideModalOpen] = useState(false);
+  const [useQuickNoteOnHover, setUseQuickNoteOnHover] = useState(false);
   const [keyboardSelectedId, setKeyboardSelectedId] = useState<string | null>(null);
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
 
@@ -424,6 +430,7 @@ function App() {
         if (data.goalMarqueeInterval) setGoalMarqueeInterval(data.goalMarqueeInterval);
         if (data.goalMarqueeRepeatCount !== undefined) setGoalMarqueeRepeatCount(data.goalMarqueeRepeatCount);
         if (data.widgetPauseMins) setWidgetPauseMins(data.widgetPauseMins);
+        if (data.useQuickNoteOnHover !== undefined) setUseQuickNoteOnHover(data.useQuickNoteOnHover);
         
         // Sync Live State
         if (data.activePage) setActivePage(data.activePage);
@@ -735,7 +742,15 @@ function App() {
 
   const handleContextMenu = useCallback((e: React.MouseEvent, id: string) => {
     e.preventDefault();
+    e.stopPropagation();
     setContextMenu({ x: e.clientX, y: e.clientY, id });
+    setBgContextMenu(null);
+  }, []);
+
+  const handleBgContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setBgContextMenu({ x: e.clientX, y: e.clientY });
+    setContextMenu(null);
   }, []);
 
   const handleBookmarkClick = (id: string, e?: React.MouseEvent) => {
@@ -790,21 +805,22 @@ function App() {
   };
 
   const rootBookmarks = bookmarks.filter(b =>
+    !b.isHidden &&
     (expandedFolderId
       ? b.parentId === expandedFolderId
       : ((b.page || 'dashboard') === activePage && !b.parentId)) &&
     (b.workspaceId === activeWorkspaceId || (!b.workspaceId && activeWorkspaceId === 'default'))
   );
 
-  const dockBookmarks = bookmarks.filter(b => b.page === 'dock' && (b.workspaceId === activeWorkspaceId || (!b.workspaceId && activeWorkspaceId === 'default'))).sort((a, b) => {
+  const dockBookmarks = bookmarks.filter(b => !b.isHidden && b.page === 'dock' && (b.workspaceId === activeWorkspaceId || (!b.workspaceId && activeWorkspaceId === 'default'))).sort((a, b) => {
     if (a.pinToEnd !== b.pinToEnd) return a.pinToEnd ? 1 : -1;
     return (a.order ?? 0) - (b.order ?? 0);
   });
-  const dockCenterBookmarks = bookmarks.filter(b => b.page === 'dock_center' && (b.workspaceId === activeWorkspaceId || (!b.workspaceId && activeWorkspaceId === 'default'))).sort((a, b) => {
+  const dockCenterBookmarks = bookmarks.filter(b => !b.isHidden && b.page === 'dock_center' && (b.workspaceId === activeWorkspaceId || (!b.workspaceId && activeWorkspaceId === 'default'))).sort((a, b) => {
     if (a.pinToEnd !== b.pinToEnd) return a.pinToEnd ? 1 : -1;
     return (a.order ?? 0) - (b.order ?? 0);
   });
-  const dockRightBookmarks = bookmarks.filter(b => b.page === 'dock_right' && (b.workspaceId === activeWorkspaceId || (!b.workspaceId && activeWorkspaceId === 'default'))).sort((a, b) => {
+  const dockRightBookmarks = bookmarks.filter(b => !b.isHidden && b.page === 'dock_right' && (b.workspaceId === activeWorkspaceId || (!b.workspaceId && activeWorkspaceId === 'default'))).sort((a, b) => {
     if (a.pinToEnd !== b.pinToEnd) return a.pinToEnd ? 1 : -1;
     return (a.order ?? 0) - (b.order ?? 0);
   });
@@ -922,6 +938,7 @@ function App() {
     >
       <div
         ref={setDashboardRef}
+        onContextMenu={handleBgContextMenu}
         className="dashboard-container"
         style={{ overflowX: 'hidden' }}
       >
@@ -1080,6 +1097,7 @@ function App() {
               ) : (
                 <div
                   onClick={(e) => e.stopPropagation()}
+                  onContextMenu={handleBgContextMenu}
                   style={{
                     display: 'flex',
                     flexDirection: isMobile ? 'column' : 'row',
@@ -1728,6 +1746,37 @@ function App() {
           const docRef = await addDoc(collection(db, 'workspaces'), { name });
           setActiveWorkspaceId(docRef.id);
         }}
+        useQuickNoteOnHover={useQuickNoteOnHover}
+        onUseQuickNoteOnHoverChange={(val) => {
+          setUseQuickNoteOnHover(val);
+          updateDashboard({ useQuickNoteOnHover: val });
+        }}
+      />
+
+      {bgContextMenu && (
+        <BackgroundContextMenu
+          x={bgContextMenu.x}
+          y={bgContextMenu.y}
+          isOpen={!!bgContextMenu}
+          onClose={() => setBgContextMenu(null)}
+          onUnhideClick={() => setIsUnhideModalOpen(true)}
+          onAddBookmark={() => setIsModalOpen(true)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+        />
+      )}
+
+      <UnhideModal
+        isOpen={isUnhideModalOpen}
+        onClose={() => setIsUnhideModalOpen(false)}
+        hiddenItems={bookmarks.filter(b => b.isHidden)}
+        onRestore={async (id) => {
+          await updateDoc(doc(db, 'bookmarks', id), { isHidden: false });
+        }}
+        onDelete={async (id) => {
+          if (window.confirm('Permanently delete this hidden item?')) {
+            await deleteDoc(doc(db, 'bookmarks', id));
+          }
+        }}
       />
 
       {contextMenu && (
@@ -1741,6 +1790,9 @@ function App() {
           onRemove={() => deleteBookmark(contextMenu.id)}
           onEdit={() => handleEditRequest(contextMenu.id)}
           onExpand={() => setExpandedId(contextMenu.id)}
+          onHide={async () => {
+            await updateDoc(doc(db, 'bookmarks', contextMenu.id), { isHidden: true });
+          }}
           onSelectIcon={() => {
             setSelectedBookmarkIds(prev =>
               prev.includes(contextMenu.id)

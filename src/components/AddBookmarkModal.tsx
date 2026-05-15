@@ -422,7 +422,7 @@ const AddBookmarkModal: React.FC<AddBookmarkModalProps> = ({
                     </label>
                   </div>
                 )}
-                  {bookmarkType === 'bookmark' && (
+                  {(bookmarkType === 'bookmark' || bookmarkType === 'note') && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
                       <div 
                         className="form-group" 

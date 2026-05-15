@@ -40,6 +40,7 @@ interface SortableBookmarkItemProps {
   hideTitle?: boolean;
   noBackground?: boolean;
   isSelected?: boolean;
+  useQuickNoteOnHover?: boolean;
 }
 
 export function SortableBookmarkItem({
@@ -54,6 +55,7 @@ export function SortableBookmarkItem({
   hideTitle = false,
   noBackground = false,
   isSelected = false,
+  useQuickNoteOnHover = false,
 }: SortableBookmarkItemProps) {
   if (!bookmark) return null;
 
@@ -122,6 +124,7 @@ export function SortableBookmarkItem({
           hideTitle={hideTitle}
           noBackground={noBackground}
           isDashboardWidget={bookmark.isDashboardWidget}
+          useQuickNoteOnHover={useQuickNoteOnHover || bookmark.useQuickNoteOnHover}
         />
       )}
     </div>
